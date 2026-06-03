@@ -18,8 +18,10 @@ export default function ProfilesPage() {
   const [isCplModalOpen, setIsCplModalOpen] = useState(false);
   
   const [profileForm, setProfileForm] = useState({ id: "", nama: "", deskripsi: "", prodi_id: "" });
-  const [cplForm, setCplForm] = useState<{id: string, kode: string, kategori: string, deskripsi: string, assigned_profils: string[]}>({ id: "", kode: "", kategori: "Sikap", deskripsi: "", assigned_profils: [] });
+  const [cplForm, setCplForm] = useState<{id: string, kode: string, kategori: string, deskripsi: string, assigned_profils: string[], sdgs: string[]}>({ id: "", kode: "", kategori: "Sikap", deskripsi: "", assigned_profils: [], sdgs: [] });
   const [cplProfils, setCplProfils] = useState<any[]>([]);
+
+  const sdgOptions = Array.from({length: 17}, (_, i) => `SDG${i+1}`);
 
   useEffect(() => {
     fetchData();
@@ -61,13 +63,13 @@ export default function ProfilesPage() {
   const handleCplSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cplForm.id) {
-      await supabase.from("cpl").update({ kode: cplForm.kode, kategori: cplForm.kategori, deskripsi: cplForm.deskripsi }).eq("id", cplForm.id);
+      await supabase.from("cpl").update({ kode: cplForm.kode, kategori: cplForm.kategori, deskripsi: cplForm.deskripsi, sdgs: cplForm.sdgs }).eq("id", cplForm.id);
       await supabase.from("profil_lulusan_cpl").delete().eq("cpl_id", cplForm.id);
       if (cplForm.assigned_profils.length > 0) {
         await supabase.from("profil_lulusan_cpl").insert(cplForm.assigned_profils.map(pid => ({ cpl_id: cplForm.id, profil_id: pid })));
       }
     } else {
-      const { data } = await supabase.from("cpl").insert([{ kode: cplForm.kode, kategori: cplForm.kategori, deskripsi: cplForm.deskripsi }]).select("id").single();
+      const { data } = await supabase.from("cpl").insert([{ kode: cplForm.kode, kategori: cplForm.kategori, deskripsi: cplForm.deskripsi, sdgs: cplForm.sdgs }]).select("id").single();
       if (data && cplForm.assigned_profils.length > 0) {
         await supabase.from("profil_lulusan_cpl").insert(cplForm.assigned_profils.map(pid => ({ cpl_id: data.id, profil_id: pid })));
       }
@@ -135,7 +137,7 @@ export default function ProfilesPage() {
         <Card>
           <CardHeader className="flex flex-row justify-between items-center space-y-0 pb-4">
             <CardTitle>Capaian Pembelajaran Lulusan (CPL)</CardTitle>
-            <Button onClick={() => { setCplForm({ id: "", kode: "", kategori: "Sikap", deskripsi: "", assigned_profils: [] }); setIsCplModalOpen(true); }} size="sm">
+            <Button onClick={() => { setCplForm({ id: "", kode: "", kategori: "Sikap", deskripsi: "", assigned_profils: [], sdgs: [] }); setIsCplModalOpen(true); }} size="sm">
               <Plus className="w-4 h-4 mr-2" /> Tambah CPL
             </Button>
           </CardHeader>
@@ -146,6 +148,7 @@ export default function ProfilesPage() {
                   <TableHead>Kode</TableHead>
                   <TableHead>Kategori</TableHead>
                   <TableHead>Deskripsi</TableHead>
+                  <TableHead>SDGs</TableHead>
                   <TableHead>Profil Terkait</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
@@ -156,6 +159,15 @@ export default function ProfilesPage() {
                     <TableCell className="font-medium">{c.kode}</TableCell>
                     <TableCell><span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-700 rounded uppercase">{c.kategori || "Umum"}</span></TableCell>
                     <TableCell className="text-gray-500">{c.deskripsi}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {c.sdgs?.map((sdg: string) => (
+                          <span key={sdg} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            {sdg}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {cplProfils.filter(m => m.cpl_id === c.id).map(m => {
@@ -171,7 +183,7 @@ export default function ProfilesPage() {
                     <TableCell className="text-right space-x-2">
                       <Button variant="secondary" size="sm" onClick={() => { 
                         const assigned = cplProfils.filter(m => m.cpl_id === c.id).map(m => m.profil_id);
-                        setCplForm({id: c.id, kode: c.kode, kategori: c.kategori || "Sikap", deskripsi: c.deskripsi, assigned_profils: assigned}); 
+                        setCplForm({id: c.id, kode: c.kode, kategori: c.kategori || "Sikap", deskripsi: c.deskripsi, assigned_profils: assigned, sdgs: c.sdgs || []}); 
                         setIsCplModalOpen(true); 
                       }}><Pencil className="w-4 h-4" /></Button>
                       <Button variant="secondary" size="sm" className="text-red-500 hover:text-red-600" onClick={() => handleCplDelete(c.id)}><Trash2 className="w-4 h-4" /></Button>
@@ -180,7 +192,7 @@ export default function ProfilesPage() {
                 ))}
                 {cpls.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-slate-500">Belum ada data CPL</TableCell>
+                    <TableCell colSpan={6} className="text-center text-slate-500">Belum ada data CPL</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -261,6 +273,27 @@ export default function ProfilesPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Deskripsi CPL</label>
                 <textarea required className="w-full p-2 border rounded" value={cplForm.deskripsi} onChange={e => setCplForm({...cplForm, deskripsi: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Label SDGs (IKU 7)</label>
+                <div className="max-h-32 overflow-y-auto border rounded p-2 bg-slate-50 grid grid-cols-2 gap-2">
+                  {sdgOptions.map(sdg => (
+                    <label key={sdg} className="flex items-center space-x-2 text-sm">
+                      <input 
+                        type="checkbox" 
+                        checked={cplForm.sdgs.includes(sdg)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setCplForm({ ...cplForm, sdgs: [...cplForm.sdgs, sdg] });
+                          } else {
+                            setCplForm({ ...cplForm, sdgs: cplForm.sdgs.filter(s => s !== sdg) });
+                          }
+                        }}
+                      />
+                      <span className="text-slate-700">{sdg}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="flex justify-end space-x-2 mt-4">
                 <Button type="button" variant="secondary" onClick={() => setIsCplModalOpen(false)}>Batal</Button>

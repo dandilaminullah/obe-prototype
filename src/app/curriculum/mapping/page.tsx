@@ -25,7 +25,7 @@ export default function MappingPage() {
 
   // Forms
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [courseForm, setCourseForm] = useState<{kode: string, nama: string, sks: number, prodi_id: string, assigned_cpls: string[], assigned_bks: string[]}>({ kode: "", nama: "", sks: 3, prodi_id: "", assigned_cpls: [], assigned_bks: [] });
+  const [courseForm, setCourseForm] = useState<{kode: string, nama: string, sks: number, prodi_id: string, assigned_cpls: string[], assigned_bks: string[], metode_pembelajaran: string, tautan_mou: string}>({ kode: "", nama: "", sks: 3, prodi_id: "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" });
 
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
   const [cpmkForm, setCpmkForm] = useState<{id: string, kode: string, deskripsi: string, bobot: number, mata_kuliah_id: string}>({ id: "", kode: "", deskripsi: "", bobot: 0, mata_kuliah_id: "" });
@@ -64,7 +64,8 @@ export default function MappingPage() {
   const handleCourseSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const { data, error } = await supabase.from("mata_kuliah").insert([{ 
-      kode: courseForm.kode, nama: courseForm.nama, sks: courseForm.sks, prodi_id: courseForm.prodi_id 
+      kode: courseForm.kode, nama: courseForm.nama, sks: courseForm.sks, prodi_id: courseForm.prodi_id,
+      metode_pembelajaran: courseForm.metode_pembelajaran, tautan_mou: courseForm.metode_pembelajaran !== 'REGULAR' ? courseForm.tautan_mou : null
     }]).select("id").single();
     
     if (data && courseForm.assigned_cpls.length > 0) {
@@ -75,7 +76,7 @@ export default function MappingPage() {
     }
 
     setIsCourseModalOpen(false);
-    setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [] });
+    setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" });
     fetchData();
   };
 
@@ -140,7 +141,7 @@ export default function MappingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Course Builder (Curriculum Mapping)</h1>
           <p className="text-gray-500">Bangun hierarki kurikulum Mata Kuliah mulai dari pemetaan CPL/BK hingga ke Sub-CPMK.</p>
         </div>
-        <Button onClick={() => { setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [] }); setIsCourseModalOpen(true); }}>
+        <Button onClick={() => { setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" }); setIsCourseModalOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" /> Tambah Mata Kuliah
         </Button>
       </div>
@@ -178,6 +179,12 @@ export default function MappingPage() {
                       <span>•</span>
                       <span className="font-semibold text-primary">{courseCpmks.length} CPMK</span>
                     </div>
+                    {course.metode_pembelajaran && course.metode_pembelajaran !== 'REGULAR' && (
+                      <div className="mt-2 text-xs">
+                        <span className="bg-purple-100 text-purple-700 font-semibold px-2 py-1 rounded">IKU 5: {course.metode_pembelajaran === 'TBP' ? 'Team-Based Project' : 'Case Method'}</span>
+                        {course.tautan_mou && <a href={course.tautan_mou} target="_blank" rel="noreferrer" className="ml-2 text-blue-500 hover:underline">Lihat Dokumen MoU</a>}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -263,14 +270,38 @@ export default function MappingPage() {
                               {/* Sub-CPMK Section */}
                               {isCpmkExpanded && (
                                 <div className="p-5 bg-slate-50 border-t border-slate-200">
-                                  <div className="flex justify-between items-center mb-4">
-                                    <h5 className="text-sm font-bold text-slate-700 flex items-center"><CheckSquare className="w-4 h-4 mr-2 text-emerald-600" />Indikator / Sub-CPMK</h5>
-                                    <Button size="sm" variant="outline" className="h-8 text-xs bg-white" onClick={() => {
-                                      setSubCpmkForm({ id: "", kode: "", deskripsi: "", bobot: 0, metode_penilaian: "", instrumen_penilaian: "", cpmk_id: cpmk.id });
-                                      setIsSubCpmkModalOpen(true);
-                                    }}>
-                                      <Plus className="w-3 h-3 mr-1" /> Tambah Sub-CPMK
-                                    </Button>
+                                  <div className="flex flex-col mb-4 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <h5 className="text-sm font-bold text-slate-700 flex items-center"><CheckSquare className="w-4 h-4 mr-2 text-emerald-600" />Indikator / Sub-CPMK</h5>
+                                      <Button size="sm" variant="outline" className="h-8 text-xs bg-white" onClick={() => {
+                                        setSubCpmkForm({ id: "", kode: "", deskripsi: "", bobot: 0, metode_penilaian: "", instrumen_penilaian: "", cpmk_id: cpmk.id });
+                                        setIsSubCpmkModalOpen(true);
+                                      }}>
+                                        <Plus className="w-3 h-3 mr-1" /> Tambah Sub-CPMK
+                                      </Button>
+                                    </div>
+                                    
+                                    {/* Weight Validation */}
+                                    {(() => {
+                                      const totalSubWeight = cpmkSubs.reduce((sum, s) => sum + Number(s.bobot || 0), 0);
+                                      const isWeightValid = totalSubWeight === 100;
+                                      return (
+                                        <div className="w-full">
+                                          <div className="flex justify-between text-xs font-semibold mb-1">
+                                            <span className={isWeightValid ? 'text-slate-600' : 'text-red-600'}>
+                                              Total Bobot Sub-CPMK (Validasi 100%)
+                                            </span>
+                                            <span className={isWeightValid ? 'text-emerald-600' : 'text-red-600'}>{totalSubWeight}% / 100%</span>
+                                          </div>
+                                          <div className="w-full bg-slate-200 rounded-full h-2">
+                                            <div className={`h-2 rounded-full ${isWeightValid ? 'bg-emerald-500' : (totalSubWeight > 100 ? 'bg-red-500' : 'bg-amber-500')}`} style={{ width: `${Math.min(totalSubWeight, 100)}%` }}></div>
+                                          </div>
+                                          {!isWeightValid && cpmkSubs.length > 0 && (
+                                            <p className="text-xs text-red-500 mt-1">Total bobot Sub-CPMK harus bernilai tepat 100%.</p>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
 
                                   <div className="space-y-3 pl-3 border-l-2 border-emerald-200">
@@ -352,6 +383,25 @@ export default function MappingPage() {
                   <label className="block text-sm font-medium mb-1 text-slate-700">Nama Mata Kuliah</label>
                   <input required type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" value={courseForm.nama} onChange={e => setCourseForm({...courseForm, nama: e.target.value})} placeholder="Contoh: Pemrograman Web" />
                 </div>
+                
+                <div className="bg-purple-50 p-4 border border-purple-100 rounded-lg space-y-3">
+                  <h4 className="text-sm font-bold text-purple-800">Metode Pembelajaran (IKU 5)</h4>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-purple-700">Jenis Metode</label>
+                    <select className="w-full p-2.5 border border-purple-200 rounded-lg bg-white outline-none focus:border-purple-400" value={courseForm.metode_pembelajaran} onChange={e => setCourseForm({...courseForm, metode_pembelajaran: e.target.value})}>
+                      <option value="REGULAR">Reguler (Bukan TBP/CM)</option>
+                      <option value="TBP">Team-Based Project (TBP)</option>
+                      <option value="CM">Case Method (CM)</option>
+                    </select>
+                  </div>
+                  {courseForm.metode_pembelajaran !== "REGULAR" && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-purple-700">Tautan Dokumen MoU/MoA Industri</label>
+                      <input required type="url" className="w-full p-2.5 border border-purple-200 rounded-lg outline-none focus:border-purple-400" value={courseForm.tautan_mou} onChange={e => setCourseForm({...courseForm, tautan_mou: e.target.value})} placeholder="https://link-ke-dokumen-kerjasama..." />
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1 text-slate-700">Target CPL (Multiple Selection)</label>
                   <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">

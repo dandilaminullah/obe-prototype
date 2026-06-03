@@ -31,6 +31,7 @@ create table cpl (
   kode text not null,
   kategori text not null,
   deskripsi text not null,
+  sdgs text[], -- IKU 7: Tagging SDGs (e.g. ['SDG4', 'SDG8'])
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -68,6 +69,8 @@ create table mata_kuliah (
   nama text not null,
   sks integer not null default 3,
   prodi_id uuid references prodi(id) on delete cascade not null,
+  metode_pembelajaran text default 'REGULAR', -- 'REGULAR', 'TBP' (Team-Based Project), 'CM' (Case Method)
+  tautan_mou text, -- IKU 5: Tautan dokumen kerjasama jika metode TBP/CM
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -130,6 +133,29 @@ create table nilai (
   unique(mahasiswa_id, sub_cpmk_id)
 );
 
+-- 11. Table Grading Audit Trail (IKU 11)
+create table grading_audit_trail (
+  id uuid primary key default uuid_generate_v4(),
+  nilai_id uuid references nilai(id) on delete cascade not null,
+  nilai_lama decimal(5,2) not null,
+  nilai_baru decimal(5,2) not null,
+  alasan text not null,
+  ip_address text,
+  user_id text, -- Identifier dosen/pengguna yang mengubah
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 12. Table Rencana Aksi Perbaikan (CQI/AMI)
+create table rencana_aksi_perbaikan (
+  id uuid primary key default uuid_generate_v4(),
+  mata_kuliah_id uuid references mata_kuliah(id) on delete cascade not null,
+  analisis_kesenjangan text not null,
+  rencana_perbaikan text not null,
+  target_semester text not null,
+  status text default 'DRAFT',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- RLS (Row Level Security) Configuration
 -- For MVP, we will allow all access (anon/authenticated) to these tables
 
@@ -174,3 +200,9 @@ create policy "Allow all operations for anon" on profil_lulusan_bk for all using
 
 alter table mata_kuliah_bk enable row level security;
 create policy "Allow all operations for anon" on mata_kuliah_bk for all using (true) with check (true);
+
+alter table grading_audit_trail enable row level security;
+create policy "Allow all operations for anon" on grading_audit_trail for all using (true) with check (true);
+
+alter table rencana_aksi_perbaikan enable row level security;
+create policy "Allow all operations for anon" on rencana_aksi_perbaikan for all using (true) with check (true);

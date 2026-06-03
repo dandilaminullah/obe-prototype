@@ -9,6 +9,7 @@ export interface CPL {
   code: string;
   description: string;
   profileId: string;
+  sdgs?: string[];
 }
 
 export interface CplMapping {
@@ -36,6 +37,8 @@ export interface Course {
   cpl_mapping: CplMapping[];
   cpmk: CPMK[];
   sub_cpmk: SubCPMK[];
+  learningMethod?: 'REGULAR' | 'TBP' | 'CM';
+  mouLink?: string;
 }
 
 export interface CurriculumData {

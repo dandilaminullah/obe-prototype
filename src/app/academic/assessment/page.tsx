@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from ".
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
 import { RadarChart, RadarDataPoint } from "../../../components/charts/RadarChart";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle, History, Info } from "lucide-react";
 
 export default function AssessmentPage() {
   const [prodis, setProdis] = useState<any[]>([]);
@@ -23,6 +23,15 @@ export default function AssessmentPage() {
   const [loading, setLoading] = useState(true);
   const [isMahasiswaModalOpen, setIsMahasiswaModalOpen] = useState(false);
   const [mahasiswaForm, setMahasiswaForm] = useState({ nim: "", nama: "" });
+
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // For Grade Changes with Reason
+  const [pendingGradeChange, setPendingGradeChange] = useState<{subCpmkId: string, oldVal: number, newVal: number} | null>(null);
+  const [changeReason, setChangeReason] = useState("");
+  const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProdis();
@@ -118,21 +127,81 @@ export default function AssessmentPage() {
     const num = parseFloat(value);
     const validNum = isNaN(num) ? 0 : Math.min(100, Math.max(0, num));
     
+    const existingVal = grades[subCpmkId];
+
+    // If there is an existing value and it's different, prompt for reason (IKU 11)
+    if (existingVal !== undefined && existingVal !== validNum && !isNaN(num)) {
+      setPendingGradeChange({ subCpmkId, oldVal: existingVal, newVal: validNum });
+      setChangeReason("");
+      setIsReasonModalOpen(true);
+      return;
+    }
+
+    await applyGradeChange(subCpmkId, validNum, isNaN(num));
+  };
+
+  const applyGradeChange = async (subCpmkId: string, validNum: number, isEmpty: boolean, reason?: string) => {
     // Optimistic update
     setGrades(prev => ({ ...prev, [subCpmkId]: validNum }));
 
-    // Delete if empty string, else upsert
-    if (value === "") {
+    if (isEmpty) {
       await supabase.from("nilai").delete().match({ mahasiswa_id: selectedMahasiswaId, sub_cpmk_id: subCpmkId });
       setGrades(prev => { const n = {...prev}; delete n[subCpmkId]; return n; });
     } else {
-      const { data: existing } = await supabase.from("nilai").select("id").match({ mahasiswa_id: selectedMahasiswaId, sub_cpmk_id: subCpmkId }).maybeSingle();
+      const { data: existing } = await supabase.from("nilai").select("id, nilai").match({ mahasiswa_id: selectedMahasiswaId, sub_cpmk_id: subCpmkId }).maybeSingle();
+      
+      let nilaiId;
       if (existing) {
         await supabase.from("nilai").update({ nilai: validNum }).eq("id", existing.id);
+        nilaiId = existing.id;
       } else {
-        await supabase.from("nilai").insert([{ mahasiswa_id: selectedMahasiswaId, sub_cpmk_id: subCpmkId, nilai: validNum }]);
+        const { data: newNilai } = await supabase.from("nilai").insert([{ mahasiswa_id: selectedMahasiswaId, sub_cpmk_id: subCpmkId, nilai: validNum }]).select("id").single();
+        nilaiId = newNilai?.id;
+      }
+
+      // Insert Audit Trail if there's a reason
+      if (reason && nilaiId && existing) {
+        await supabase.from("grading_audit_trail").insert([{
+          nilai_id: nilaiId,
+          nilai_lama: existing.nilai,
+          nilai_baru: validNum,
+          alasan: reason,
+          user_id: "Dosen" // Mock User
+        }]);
       }
     }
+  };
+
+  const confirmGradeChange = async () => {
+    if (pendingGradeChange && changeReason.trim()) {
+      await applyGradeChange(pendingGradeChange.subCpmkId, pendingGradeChange.newVal, false, changeReason);
+      setIsReasonModalOpen(false);
+      setPendingGradeChange(null);
+    } else {
+      alert("Alasan perubahan nilai wajib diisi untuk Audit Trail (IKU 11).");
+    }
+  };
+
+  const viewAuditTrail = async () => {
+    if (!selectedMahasiswaId) return;
+    setIsAuditModalOpen(true);
+    setAuditLoading(true);
+    
+    // Get all nilai ids for this student
+    const { data: nilaiData } = await supabase.from("nilai").select("id, sub_cpmk(kode)").eq("mahasiswa_id", selectedMahasiswaId);
+    if (nilaiData && nilaiData.length > 0) {
+      const nilaiIds = nilaiData.map(n => n.id);
+      const { data: logs } = await supabase.from("grading_audit_trail").select("*").in("nilai_id", nilaiIds).order("created_at", { ascending: false });
+      
+      const enrichedLogs = logs?.map(log => {
+        const n = nilaiData.find(x => x.id === log.nilai_id);
+        return { ...log, sub_cpmk_kode: n?.sub_cpmk?.kode || "Unknown" };
+      });
+      setAuditLogs(enrichedLogs || []);
+    } else {
+      setAuditLogs([]);
+    }
+    setAuditLoading(false);
   };
 
   const handleSaveMahasiswa = async (e: React.FormEvent) => {
@@ -207,6 +276,9 @@ export default function AssessmentPage() {
             <Button onClick={() => setIsMahasiswaModalOpen(true)} size="sm" className="shrink-0" disabled={!selectedProdiId}>
               <Plus className="w-4 h-4" />
             </Button>
+            <Button onClick={viewAuditTrail} size="sm" variant="outline" className="shrink-0 text-slate-600" disabled={!selectedMahasiswaId} title="Lihat Grading Audit Trail (IKU 11)">
+              <History className="w-4 h-4 mr-2" /> Audit Trail
+            </Button>
           </div>
         </div>
       </div>
@@ -253,7 +325,12 @@ export default function AssessmentPage() {
                                   className="text-right"
                                   value={grades[sub.id] !== undefined ? grades[sub.id] : ''}
                                   placeholder="0"
-                                  onChange={(e) => handleGradeChange(sub.id, e.target.value)}
+                                  onBlur={(e) => handleGradeChange(sub.id, e.target.value)}
+                                  onChange={(e) => {
+                                    // Local state update only, DB update on blur
+                                    const val = parseFloat(e.target.value);
+                                    if(!isNaN(val)) setGrades(prev => ({ ...prev, [sub.id]: val }));
+                                  }}
                                 />
                               </TableCell>
                             </TableRow>
@@ -284,6 +361,17 @@ export default function AssessmentPage() {
               <CardContent>
                 {cpls.length > 0 ? (
                   <>
+                    {/* Early Warning System (EWS) - IKU 1 */}
+                    {cplAchievement.some(c => c.A < 50) && (
+                      <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start text-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong>Early Warning System (EWS):</strong>
+                          <p>Mahasiswa ini memiliki Capaian CPL di bawah ambang batas (50%). Harap Dosen Wali segera menindaklanjuti untuk mencegah keterlambatan studi (IKU 1 - AEE).</p>
+                        </div>
+                      </div>
+                    )}
+
                     <RadarChart data={cplAchievement} />
                     
                     <div className="mt-6 space-y-3">
@@ -325,6 +413,89 @@ export default function AssessmentPage() {
                 <Button type="submit">Simpan</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Reason for Audit Trail */}
+      {isReasonModalOpen && pendingGradeChange && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-4 flex items-center text-amber-700">
+              <Info className="w-5 h-5 mr-2" /> Konfirmasi Perubahan Nilai
+            </h2>
+            <div className="mb-4 text-sm text-slate-600 bg-amber-50 p-3 rounded-md border border-amber-100">
+              Perubahan nilai telah terdeteksi. Sesuai <strong>IKU 11 (Integritas Akademik)</strong>, mohon berikan alasan perubahan ini untuk dicatat pada Audit Trail.
+              <ul className="mt-2 font-medium">
+                <li>Nilai Lama: {pendingGradeChange.oldVal}</li>
+                <li>Nilai Baru: {pendingGradeChange.newVal}</li>
+              </ul>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); confirmGradeChange(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Alasan Perubahan</label>
+                <textarea 
+                  required 
+                  className="w-full p-2 border border-slate-300 rounded focus:border-amber-500 outline-none" 
+                  rows={3}
+                  value={changeReason} 
+                  onChange={e => setChangeReason(e.target.value)} 
+                  placeholder="Contoh: Mahasiswa melakukan perbaikan tugas / Kesalahan input dosen" 
+                />
+              </div>
+              <div className="flex justify-end space-x-2 mt-4">
+                <Button type="button" variant="ghost" onClick={() => {
+                  // Revert locally
+                  setGrades(prev => ({ ...prev, [pendingGradeChange.subCpmkId]: pendingGradeChange.oldVal }));
+                  setIsReasonModalOpen(false);
+                  setPendingGradeChange(null);
+                }}>Batal (Kembalikan)</Button>
+                <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">Simpan Perubahan</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Audit Trail Log */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-xl font-bold flex items-center text-slate-800">
+                <History className="w-5 h-5 mr-2 text-primary" /> Grading Audit Trail
+              </h2>
+              <Button variant="ghost" size="sm" onClick={() => setIsAuditModalOpen(false)}>Tutup</Button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+              {auditLoading ? (
+                <div className="text-center text-slate-500 py-8">Memuat riwayat...</div>
+              ) : auditLogs.length === 0 ? (
+                <div className="text-center text-slate-500 py-8 bg-white border border-slate-200 rounded-lg">Belum ada riwayat perubahan nilai untuk mahasiswa ini.</div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLogs.map((log: any) => (
+                    <div key={log.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center">
+                          <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded text-xs mr-2">{log.sub_cpmk_kode}</span>
+                          <span className="text-sm text-slate-500">{new Date(log.created_at).toLocaleString()}</span>
+                        </div>
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">{log.user_id}</span>
+                      </div>
+                      <div className="flex items-center space-x-3 my-2 text-sm font-medium">
+                        <span className="text-red-500 line-through">{log.nilai_lama}</span>
+                        <span>➔</span>
+                        <span className="text-green-600">{log.nilai_baru}</span>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-slate-100 text-sm text-slate-600 italic">
+                        "{log.alasan}"
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

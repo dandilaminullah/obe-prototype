@@ -49,14 +49,24 @@ const navItems = [
         icon: BookOpen,
       },
       {
-        title: "Matrix Mapping",
+        title: "Course Builder",
         href: "/curriculum/mapping",
         icon: Network,
+      },
+      {
+        title: "Matriks Kurikulum",
+        href: "/curriculum/matrix",
+        icon: Target,
       },
       {
         title: "Curriculum Viewer",
         href: "/curriculum/viewer",
         icon: Eye,
+      },
+      {
+        title: "Transisi Kurikulum",
+        href: "/curriculum/transition",
+        icon: Network,
       },
     ],
   },
@@ -72,6 +82,16 @@ const navItems = [
         title: "Simulasi Asesmen",
         href: "/academic/assessment",
         icon: GraduationCap,
+      },
+    ],
+  },
+  {
+    title: "Quality Improvement (CQI)",
+    items: [
+      {
+        title: "Portal Auditor (AMI)",
+        href: "/cqi",
+        icon: Eye,
       },
     ],
   },

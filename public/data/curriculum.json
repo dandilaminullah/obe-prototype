@@ -5,16 +5,18 @@
     { "id": "P3", "name": "Data Scientist", "description": "Ahli analisis data dan machine learning" }
   ],
   "cpl": [
-    { "id": "CPL1", "code": "CPL-01", "description": "Mampu merancang antarmuka pengguna yang responsif dan interaktif", "profileId": "P1" },
-    { "id": "CPL2", "code": "CPL-02", "description": "Mampu merancang struktur database dan API yang efisien", "profileId": "P2" },
-    { "id": "CPL3", "code": "CPL-03", "description": "Menguasai algoritma machine learning dan analisis data statistik", "profileId": "P3" },
-    { "id": "CPL4", "code": "CPL-04", "description": "Mampu bekerja dalam tim multidisiplin", "profileId": "P1" }
+    { "id": "CPL1", "code": "CPL-01", "description": "Mampu merancang antarmuka pengguna yang responsif dan interaktif", "profileId": "P1", "sdgs": ["SDG4", "SDG9"] },
+    { "id": "CPL2", "code": "CPL-02", "description": "Mampu merancang struktur database dan API yang efisien", "profileId": "P2", "sdgs": ["SDG4", "SDG9"] },
+    { "id": "CPL3", "code": "CPL-03", "description": "Menguasai algoritma machine learning dan analisis data statistik", "profileId": "P3", "sdgs": ["SDG4", "SDG8"] },
+    { "id": "CPL4", "code": "CPL-04", "description": "Mampu bekerja dalam tim multidisiplin", "profileId": "P1", "sdgs": ["SDG4", "SDG17"] }
   ],
   "courses": [
     {
       "id": "MK1",
       "code": "INF101",
       "name": "Pemrograman Mobile I",
+      "learningMethod": "TBP",
+      "mouLink": "https://example.com/mou-mobile-dev.pdf",
       "cpl_mapping": [
         { "cplId": "CPL1", "weight": 0.5 },
         { "cplId": "CPL4", "weight": 0.2 }
@@ -32,7 +34,8 @@
     {
       "id": "MK2",
       "code": "INF102",
-        "name": "Sistem Basis Data",
+      "name": "Sistem Basis Data",
+      "learningMethod": "REGULAR",
         "cpl_mapping": [
         { "cplId": "CPL2", "weight": 0.7 }
       ],
