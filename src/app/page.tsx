@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Target, Network, BookOpen, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 
@@ -68,3 +68,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

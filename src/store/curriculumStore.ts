@@ -16,7 +16,7 @@ export const createCurriculumStore = (
   return createStore<CurriculumState>()((set) => ({
     profiles: dummyData.profiles,
     cpl: dummyData.cpl,
-    courses: dummyData.courses,
+    courses: dummyData.courses as unknown as Course[],
     studentGrades: {},
     ...initialProps,
     updateMappingWeight: (courseId, cplId, newWeight) =>

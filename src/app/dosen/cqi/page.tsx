@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../components/ui/Card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../../components/ui/Table";
-import { Button } from "../../components/ui/Button";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/Table";
+import { Button } from "@/components/ui/Button";
 import { AlertCircle, FileText, CheckCircle, Clock } from "lucide-react";
 
 export default function CQIPage() {
@@ -210,3 +210,4 @@ export default function CQIPage() {
     </div>
   );
 }
+

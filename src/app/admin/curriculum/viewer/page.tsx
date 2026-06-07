@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/Card";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { BookOpen, Network, CheckCircle2, ListMinus } from "lucide-react";
 
 export default function CurriculumViewerPage() {
@@ -161,3 +161,4 @@ export default function CurriculumViewerPage() {
     </div>
   );
 }
+

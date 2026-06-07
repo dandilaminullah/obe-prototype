@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/Card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../../../components/ui/Table";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/Table";
 import { Check } from "lucide-react";
 
 export default function MatrixMappingPage() {
@@ -145,3 +145,4 @@ export default function MatrixMappingPage() {
     </div>
   );
 }
+

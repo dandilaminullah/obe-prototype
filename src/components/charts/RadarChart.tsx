@@ -44,3 +44,4 @@ export function RadarChart({ data, title }: RadarChartProps) {
     </div>
   );
 }
+

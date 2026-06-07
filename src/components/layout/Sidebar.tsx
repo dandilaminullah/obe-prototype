@@ -11,94 +11,91 @@ import {
   GraduationCap,
   Building2,
   Eye,
+  FileArchive,
+  History
 } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
+import { useUser, UserRole } from "@/context/UserContext";
+import { RoleSwitcher } from "./RoleSwitcher";
 
-const navItems = [
-  {
-    title: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Master Data",
-    items: [
-      {
-        title: "Jurusan",
-        href: "/master/jurusan",
-        icon: Building2,
-      },
-      {
-        title: "Program Studi",
-        href: "/master/prodi",
-        icon: BookOpen,
-      },
-    ],
-  },
-  {
-    title: "Curriculum (OBC)",
-    items: [
-      {
-        title: "Profil Lulusan",
-        href: "/curriculum/profiles",
-        icon: Target,
-      },
-      {
-        title: "Bahan Kajian",
-        href: "/curriculum/bk",
-        icon: BookOpen,
-      },
-      {
-        title: "Course Builder",
-        href: "/curriculum/mapping",
-        icon: Network,
-      },
-      {
-        title: "Matriks Kurikulum",
-        href: "/curriculum/matrix",
-        icon: Target,
-      },
-      {
-        title: "Curriculum Viewer",
-        href: "/curriculum/viewer",
-        icon: Eye,
-      },
-      {
-        title: "Transisi Kurikulum",
-        href: "/curriculum/transition",
-        icon: Network,
-      },
-    ],
-  },
-  {
-    title: "Academic (OBLT & OBAE)",
-    items: [
-      {
-        title: "Digital RPS Builder",
-        href: "/academic/rps",
-        icon: BookOpen,
-      },
-      {
-        title: "Simulasi Asesmen",
-        href: "/academic/assessment",
-        icon: GraduationCap,
-      },
-    ],
-  },
-  {
-    title: "Quality Improvement (CQI)",
-    items: [
-      {
-        title: "Portal Auditor (AMI)",
-        href: "/cqi",
-        icon: Eye,
-      },
-    ],
-  },
-];
+const getNavItems = (role: UserRole) => {
+  switch (role) {
+    case 'ADMIN':
+      return [
+        {
+          title: "Dashboard Admin",
+          href: "/admin",
+          icon: LayoutDashboard,
+        },
+        {
+          title: "Master Data",
+          items: [
+            { title: "Jurusan", href: "/admin/master/jurusan", icon: Building2 },
+            { title: "Program Studi", href: "/admin/master/prodi", icon: BookOpen },
+          ],
+        },
+        {
+          title: "Curriculum (OBC)",
+          items: [
+            { title: "Profil Lulusan", href: "/admin/curriculum/profiles", icon: Target },
+            { title: "Bahan Kajian", href: "/admin/curriculum/bk", icon: BookOpen },
+            { title: "Course Builder", href: "/admin/curriculum/mapping", icon: Network },
+            { title: "Matriks Kurikulum", href: "/admin/curriculum/matrix", icon: Target },
+            { title: "Curriculum Viewer", href: "/admin/curriculum/viewer", icon: Eye },
+          ],
+        },
+      ];
+    case 'DOSEN':
+      return [
+        {
+          title: "Dashboard Dosen",
+          href: "/dosen",
+          icon: LayoutDashboard,
+        },
+        {
+          title: "Pelaksanaan (OBLT)",
+          items: [
+            { title: "Digital RPS Builder", href: "/dosen/rps", icon: BookOpen },
+          ],
+        },
+        {
+          title: "Asesmen (OBAE)",
+          items: [
+            { title: "Simulasi Asesmen", href: "/dosen/assessment", icon: GraduationCap },
+            { title: "SISTER Auto-Package", href: "/dosen/sister", icon: FileArchive },
+          ],
+        },
+        {
+          title: "Evaluasi (CQI)",
+          items: [
+            { title: "Rencana Aksi Perbaikan", href: "/dosen/cqi", icon: Target },
+          ],
+        },
+      ];
+    case 'AUDITOR':
+      return [
+        {
+          title: "Dashboard Auditor",
+          href: "/auditor",
+          icon: LayoutDashboard,
+        },
+        {
+          title: "Audit Mutu Internal",
+          items: [
+            { title: "Portal Auditor", href: "/auditor/portal", icon: Eye },
+            { title: "Grading Audit Trail", href: "/auditor/audit-trail", icon: History },
+          ],
+        },
+      ];
+    default:
+      return [];
+  }
+};
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { role } = useUser();
+  const navItems = getNavItems(role);
 
   return (
     <div className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen">
@@ -122,7 +119,7 @@ export function Sidebar() {
                         href={item.href}
                         className={cn(
                           "flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
-                          pathname === item.href
+                          pathname === item.href || pathname.startsWith(item.href + '/')
                             ? "bg-primary/10 text-primary"
                             : "text-foreground hover:bg-slate-100",
                         )}
@@ -130,7 +127,7 @@ export function Sidebar() {
                         <item.icon
                           className={cn(
                             "mr-3 h-5 w-5 flex-shrink-0",
-                            pathname === item.href
+                            pathname === item.href || pathname.startsWith(item.href + '/')
                               ? "text-primary"
                               : "text-muted",
                           )}
@@ -167,6 +164,9 @@ export function Sidebar() {
           ))}
         </nav>
       </div>
+
+      <RoleSwitcher />
     </div>
   );
 }
+

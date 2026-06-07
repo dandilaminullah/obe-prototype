@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
+import { Button } from "@/components/ui/Button";
 
 export default function JurusanPage() {
   const [jurusans, setJurusans] = useState<any[]>([]);
@@ -116,3 +116,4 @@ export default function JurusanPage() {
     </div>
   );
 }
+

@@ -1,6 +1,18 @@
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
+-- 0. User Roles Enum
+create type user_role as enum ('ADMIN', 'DOSEN', 'AUDITOR');
+
+-- 0.1 Table Users
+create table users (
+  id uuid primary key default uuid_generate_v4(),
+  nama text not null,
+  email text unique not null,
+  role user_role not null default 'DOSEN',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- 1. Table Jurusan
 create table jurusan (
   id uuid primary key default uuid_generate_v4(),
@@ -13,6 +25,7 @@ create table prodi (
   id uuid primary key default uuid_generate_v4(),
   nama text not null,
   jurusan_id uuid references jurusan(id) on delete cascade not null,
+  batas_kelulusan_cpl decimal(5,2) default 60.0,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -161,6 +174,9 @@ create table rencana_aksi_perbaikan (
 
 alter table jurusan enable row level security;
 create policy "Allow all operations for anon" on jurusan for all using (true) with check (true);
+
+alter table users enable row level security;
+create policy "Allow all operations for anon" on users for all using (true) with check (true);
 
 alter table prodi enable row level security;
 create policy "Allow all operations for anon" on prodi for all using (true) with check (true);

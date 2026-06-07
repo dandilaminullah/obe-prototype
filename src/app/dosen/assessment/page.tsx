@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../../components/ui/Card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../../../components/ui/Table";
-import { Input } from "../../../components/ui/Input";
-import { Button } from "../../../components/ui/Button";
-import { RadarChart, RadarDataPoint } from "../../../components/charts/RadarChart";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/Table";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { RadarChart, RadarDataPoint } from "@/components/charts/RadarChart";
 import { Plus, AlertTriangle, History, Info } from "lucide-react";
 
 export default function AssessmentPage() {
@@ -195,7 +195,7 @@ export default function AssessmentPage() {
       
       const enrichedLogs = logs?.map(log => {
         const n = nilaiData.find(x => x.id === log.nilai_id);
-        return { ...log, sub_cpmk_kode: n?.sub_cpmk?.kode || "Unknown" };
+        return { ...log, sub_cpmk_kode: (n?.sub_cpmk as any)?.kode || "Unknown" };
       });
       setAuditLogs(enrichedLogs || []);
     } else {
@@ -241,6 +241,9 @@ export default function AssessmentPage() {
       fullMark: 100,
     }));
   }, [cpls, courses, grades]);
+
+  const selectedProdi = prodis.find(p => p.id === selectedProdiId);
+  const threshold = selectedProdi?.batas_kelulusan_cpl || 60;
 
   if (loading && prodis.length === 0) return <div className="p-8 text-center text-slate-500">Loading...</div>;
 
@@ -362,12 +365,12 @@ export default function AssessmentPage() {
                 {cpls.length > 0 ? (
                   <>
                     {/* Early Warning System (EWS) - IKU 1 */}
-                    {cplAchievement.some(c => c.A < 50) && (
+                    {cplAchievement.some(c => c.A < threshold) && (
                       <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start text-sm">
                         <AlertTriangle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
                         <div>
                           <strong>Early Warning System (EWS):</strong>
-                          <p>Mahasiswa ini memiliki Capaian CPL di bawah ambang batas (50%). Harap Dosen Wali segera menindaklanjuti untuk mencegah keterlambatan studi (IKU 1 - AEE).</p>
+                          <p>Mahasiswa ini memiliki Capaian CPL di bawah ambang batas prodi ({threshold}%). Harap Dosen Wali segera menindaklanjuti untuk mencegah keterlambatan studi (IKU 1 - AEE).</p>
                         </div>
                       </div>
                     )}
@@ -502,3 +505,4 @@ export default function AssessmentPage() {
     </div>
   );
 }
+

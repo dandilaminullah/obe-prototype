@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronUp, Layers, Target, Book, Activity, CheckSquare } from "lucide-react";
 
 export default function MappingPage() {
@@ -535,3 +535,4 @@ export default function MappingPage() {
     </div>
   );
 }
+

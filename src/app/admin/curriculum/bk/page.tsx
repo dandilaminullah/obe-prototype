@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent } from "../../../components/ui/Card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../../../components/ui/Table";
-import { Button } from "../../../components/ui/Button";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/Table";
+import { Button } from "@/components/ui/Button";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function BahanKajianPage() {
@@ -184,3 +184,4 @@ export default function BahanKajianPage() {
     </div>
   );
 }
+

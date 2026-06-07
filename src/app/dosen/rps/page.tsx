@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../../components/ui/Card";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "../../../components/ui/Table";
-import { Input } from "../../../components/ui/Input";
-import { Button } from "../../../components/ui/Button";
+import { supabase } from "@/lib/supabase";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/Table";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { CheckCircle, AlertTriangle, Plus, Trash2 } from "lucide-react";
 
 export default function RPSBuilderPage() {
@@ -15,6 +15,7 @@ export default function RPSBuilderPage() {
   const [loading, setLoading] = useState(true);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
   const [cpmkForm, setCpmkForm] = useState({ kode: "", deskripsi: "", bobot: 0 });
@@ -28,12 +29,15 @@ export default function RPSBuilderPage() {
 
   useEffect(() => {
     if (selectedCourseId) {
+      const course = courses.find(c => c.id === selectedCourseId);
+      setSelectedCourse(course);
       fetchCpmkAndSubCpmk(selectedCourseId);
     } else {
+      setSelectedCourse(null);
       setCpmks([]);
       setSubCpmks([]);
     }
-  }, [selectedCourseId]);
+  }, [selectedCourseId, courses]);
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -110,6 +114,24 @@ export default function RPSBuilderPage() {
     await supabase.from("cpmk").update({ bobot: num }).eq("id", cpmkId);
   }
 
+  const handleUpdateCourseMethod = async () => {
+    if (!selectedCourse) return;
+    
+    // Validate IKU 5
+    if ((selectedCourse.metode_pembelajaran === 'TBP' || selectedCourse.metode_pembelajaran === 'CM') && !selectedCourse.tautan_mou) {
+      alert("Tautan dokumen MoU/MoA wajib diisi untuk metode Case Method atau Team-Based Project (IKU 5).");
+      return;
+    }
+
+    await supabase.from("mata_kuliah").update({
+      metode_pembelajaran: selectedCourse.metode_pembelajaran,
+      tautan_mou: selectedCourse.tautan_mou
+    }).eq("id", selectedCourse.id);
+    
+    alert("Metode pembelajaran berhasil diperbarui.");
+    fetchCourses();
+  };
+
   if (loading && courses.length === 0) return <div className="p-8 text-center">Loading...</div>;
 
   const totalCpmkWeight = cpmks.reduce((acc, curr) => acc + (curr.bobot || 0), 0);
@@ -143,6 +165,40 @@ export default function RPSBuilderPage() {
           </Button>
         )}
       </div>
+
+      {selectedCourse && (
+        <Card className="mb-6 bg-slate-50 border-blue-100">
+          <CardContent className="p-4 flex flex-col md:flex-row gap-4 md:items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Metode Pembelajaran (IKU 5)</label>
+              <select 
+                className="w-full border border-slate-300 rounded-md p-2 text-sm bg-white"
+                value={selectedCourse.metode_pembelajaran || "REGULAR"}
+                onChange={(e) => setSelectedCourse({...selectedCourse, metode_pembelajaran: e.target.value})}
+              >
+                <option value="REGULAR">Regular</option>
+                <option value="CM">Case Method (CM)</option>
+                <option value="TBP">Team-Based Project (TBP)</option>
+              </select>
+            </div>
+            
+            {(selectedCourse.metode_pembelajaran === 'CM' || selectedCourse.metode_pembelajaran === 'TBP') && (
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-red-600 mb-1">Tautan MoU/MoA Industri *wajib</label>
+                <Input 
+                  type="url" 
+                  placeholder="https://link-to-mou.com" 
+                  value={selectedCourse.tautan_mou || ""}
+                  onChange={(e) => setSelectedCourse({...selectedCourse, tautan_mou: e.target.value})}
+                  className="border-red-200 focus:ring-red-500"
+                />
+              </div>
+            )}
+            
+            <Button variant="secondary" onClick={handleUpdateCourseMethod}>Simpan Metode</Button>
+          </CardContent>
+        </Card>
+      )}
 
       {selectedCourseId && cpmks.length > 0 && (
         <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
@@ -298,3 +354,4 @@ export default function RPSBuilderPage() {
     </div>
   );
 }
+

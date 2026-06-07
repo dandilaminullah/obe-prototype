@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
+import { Button } from "@/components/ui/Button";
 
 export default function ProdiPage() {
   const [prodis, setProdis] = useState<any[]>([]);
   const [jurusans, setJurusans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: "", nama: "", jurusan_id: "" });
+  const [formData, setFormData] = useState({ id: "", nama: "", jurusan_id: "", batas_kelulusan_cpl: 60.0 });
 
   useEffect(() => {
     fetchData();
@@ -34,16 +34,18 @@ export default function ProdiPage() {
     if (formData.id) {
       await supabase.from("prodi").update({ 
         nama: formData.nama,
-        jurusan_id: formData.jurusan_id
+        jurusan_id: formData.jurusan_id,
+        batas_kelulusan_cpl: formData.batas_kelulusan_cpl
       }).eq("id", formData.id);
     } else {
       await supabase.from("prodi").insert([{ 
         nama: formData.nama,
-        jurusan_id: formData.jurusan_id
+        jurusan_id: formData.jurusan_id,
+        batas_kelulusan_cpl: formData.batas_kelulusan_cpl
       }]);
     }
     setIsModalOpen(false);
-    setFormData({ id: "", nama: "", jurusan_id: "" });
+    setFormData({ id: "", nama: "", jurusan_id: "", batas_kelulusan_cpl: 60.0 });
     fetchData();
   };
 
@@ -58,7 +60,7 @@ export default function ProdiPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800">Manajemen Program Studi</h1>
-        <Button onClick={() => { setFormData({ id: "", nama: "", jurusan_id: jurusans[0]?.id || "" }); setIsModalOpen(true); }}>
+        <Button onClick={() => { setFormData({ id: "", nama: "", jurusan_id: jurusans[0]?.id || "", batas_kelulusan_cpl: 60.0 }); setIsModalOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" />
           Tambah Prodi
         </Button>
@@ -70,25 +72,27 @@ export default function ProdiPage() {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="p-4 font-semibold text-sm text-slate-600">Nama Prodi</th>
               <th className="p-4 font-semibold text-sm text-slate-600">Jurusan</th>
+              <th className="p-4 font-semibold text-sm text-slate-600">Threshold CPL (%)</th>
               <th className="p-4 font-semibold text-sm text-slate-600 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} className="p-4 text-center text-slate-500">Loading...</td>
+                <td colSpan={4} className="p-4 text-center text-slate-500">Loading...</td>
               </tr>
             ) : prodis.length === 0 ? (
               <tr>
-                <td colSpan={3} className="p-4 text-center text-slate-500">Belum ada data prodi.</td>
+                <td colSpan={4} className="p-4 text-center text-slate-500">Belum ada data prodi.</td>
               </tr>
             ) : (
               prodis.map((prodi) => (
                 <tr key={prodi.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="p-4 text-sm text-slate-700">{prodi.nama}</td>
                   <td className="p-4 text-sm text-slate-700">{prodi.jurusan?.nama}</td>
+                  <td className="p-4 text-sm text-slate-700 font-semibold">{prodi.batas_kelulusan_cpl || 60}%</td>
                   <td className="p-4 text-right space-x-2">
-                    <Button variant="secondary" size="sm" onClick={() => { setFormData({ id: prodi.id, nama: prodi.nama, jurusan_id: prodi.jurusan_id }); setIsModalOpen(true); }}>
+                    <Button variant="secondary" size="sm" onClick={() => { setFormData({ id: prodi.id, nama: prodi.nama, jurusan_id: prodi.jurusan_id, batas_kelulusan_cpl: prodi.batas_kelulusan_cpl || 60.0 }); setIsModalOpen(true); }}>
                       <Pencil className="w-4 h-4" />
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => handleDelete(prodi.id)} className="text-red-500 hover:text-red-600">
@@ -132,6 +136,19 @@ export default function ProdiPage() {
                   placeholder="Contoh: S1 Teknik Informatika"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Threshold Minimum CPL (%)</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  max="100"
+                  className="w-full p-2 border rounded-md"
+                  value={formData.batas_kelulusan_cpl}
+                  onChange={(e) => setFormData({ ...formData, batas_kelulusan_cpl: parseFloat(e.target.value) })}
+                  placeholder="Contoh: 60"
+                />
+              </div>
               <div className="flex justify-end space-x-2 mt-6">
                 <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Batal</Button>
                 <Button type="submit">Simpan</Button>
@@ -143,3 +160,4 @@ export default function ProdiPage() {
     </div>
   );
 }
+
