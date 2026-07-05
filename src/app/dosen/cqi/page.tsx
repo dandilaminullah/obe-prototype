@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { AlertCircle, FileText, CheckCircle, Clock } from "lucide-react";
 
 export default function CQIPage() {
+  const [prodis, setProdis] = useState<any[]>([]);
+  const [selectedProdiId, setSelectedProdiId] = useState("");
+  
+  const [kurikulums, setKurikulums] = useState<any[]>([]);
+  const [selectedKurikulumId, setSelectedKurikulumId] = useState("");
+
   const [courses, setCourses] = useState<any[]>([]);
   const [actionPlans, setActionPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,17 +25,61 @@ export default function CQIPage() {
   });
 
   useEffect(() => {
-    fetchData();
+    fetchProdis();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (selectedProdiId) {
+      fetchKurikulums(selectedProdiId);
+    }
+  }, [selectedProdiId]);
+
+  useEffect(() => {
+    if (selectedKurikulumId) {
+      fetchData(selectedKurikulumId);
+    } else {
+      setCourses([]);
+      setActionPlans([]);
+    }
+  }, [selectedKurikulumId]);
+
+  const fetchProdis = async () => {
     setLoading(true);
-    const [courseRes, planRes] = await Promise.all([
-      supabase.from("mata_kuliah").select("*").order("kode"),
-      supabase.from("rencana_aksi_perbaikan").select("*, mata_kuliah(kode, nama)").order("created_at", { ascending: false })
-    ]);
-    if (courseRes.data) setCourses(courseRes.data);
-    if (planRes.data) setActionPlans(planRes.data);
+    const { data } = await supabase.from("prodi").select("*").order("nama");
+    if (data) {
+      setProdis(data);
+      if (data.length > 0) setSelectedProdiId(data[0].id);
+    }
+    setLoading(false);
+  };
+
+  const fetchKurikulums = async (prodiId: string) => {
+    const { data } = await supabase.from("kurikulum").select("*").eq("prodi_id", prodiId).order("tahun_berlaku", { ascending: false });
+    if (data) {
+      setKurikulums(data);
+      if (data.length > 0) setSelectedKurikulumId(data[0].id);
+      else setSelectedKurikulumId("");
+    }
+  };
+
+  const fetchData = async (kurikulumId: string) => {
+    setLoading(true);
+    
+    // First get courses for this kurikulum
+    const { data: courseData } = await supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId).order("semester").order("kode");
+    
+    if (courseData) {
+      setCourses(courseData);
+      
+      const courseIds = courseData.map(c => c.id);
+      if (courseIds.length > 0) {
+        const { data: planRes } = await supabase.from("rencana_aksi_perbaikan").select("*, mata_kuliah(kode, nama)").in("mata_kuliah_id", courseIds).order("created_at", { ascending: false });
+        if (planRes) setActionPlans(planRes);
+      } else {
+        setActionPlans([]);
+      }
+    }
+    
     setLoading(false);
   };
 
@@ -52,7 +102,7 @@ export default function CQIPage() {
       }]);
     }
     setIsPlanModalOpen(false);
-    fetchData();
+    if (selectedKurikulumId) fetchData(selectedKurikulumId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -64,7 +114,7 @@ export default function CQIPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Loading...</div>;
+  if (loading && prodis.length === 0) return <div className="p-8 text-center text-slate-500">Loading...</div>;
 
   return (
     <div className="space-y-8 pb-10">
@@ -73,13 +123,36 @@ export default function CQIPage() {
         <p className="text-gray-500">Audit Mutu Internal (AMI) & Rencana Aksi Perbaikan Berkelanjutan.</p>
       </div>
 
+      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+          <select 
+            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white outline-none"
+            value={selectedProdiId}
+            onChange={(e) => setSelectedProdiId(e.target.value)}
+          >
+            {prodis.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kurikulum</label>
+          <select 
+            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white outline-none"
+            value={selectedKurikulumId}
+            onChange={(e) => setSelectedKurikulumId(e.target.value)}
+          >
+            {kurikulums.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-white border-l-4 border-l-amber-500">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-slate-500">Total Kesenjangan Ditemukan</p>
-                <h3 className="text-2xl font-bold text-slate-800 mt-1">4 Mata Kuliah</h3>
+                <h3 className="text-2xl font-bold text-slate-800 mt-1">{actionPlans.length} Mata Kuliah</h3>
               </div>
               <div className="bg-amber-100 p-2 rounded-lg"><AlertCircle className="w-6 h-6 text-amber-600"/></div>
             </div>
@@ -118,7 +191,7 @@ export default function CQIPage() {
           <Button onClick={() => {
             setPlanForm({ id: "", mata_kuliah_id: courses[0]?.id || "", analisis_kesenjangan: "", rencana_perbaikan: "", target_semester: "", status: "DRAFT" });
             setIsPlanModalOpen(true);
-          }}>
+          }} disabled={courses.length === 0}>
             Buat Rencana Aksi
           </Button>
         </CardHeader>
@@ -210,4 +283,3 @@ export default function CQIPage() {
     </div>
   );
 }
-

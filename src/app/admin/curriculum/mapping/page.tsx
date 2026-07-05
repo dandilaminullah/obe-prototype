@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { Plus, Trash2, Pencil, ChevronDown, ChevronUp, Layers, Target, Book, Activity, CheckSquare } from "lucide-react";
 
 export default function MappingPage() {
+  const [kurikulums, setKurikulums] = useState<any[]>([]);
+  const [selectedKurikulum, setSelectedKurikulum] = useState<string>("");
+
   const [cpls, setCpls] = useState<any[]>([]);
   const [bks, setBks] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
-  const [prodis, setProdis] = useState<any[]>([]);
   
   const [courseCpls, setCourseCpls] = useState<any[]>([]);
   const [courseBks, setCourseBks] = useState<any[]>([]);
@@ -25,7 +27,7 @@ export default function MappingPage() {
 
   // Forms
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [courseForm, setCourseForm] = useState<{kode: string, nama: string, sks: number, prodi_id: string, assigned_cpls: string[], assigned_bks: string[], metode_pembelajaran: string, tautan_mou: string}>({ kode: "", nama: "", sks: 3, prodi_id: "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" });
+  const [courseForm, setCourseForm] = useState<{id?: string, kode: string, nama: string, sks: number, kurikulum_id: string, semester: number, sifat_mk: string, rekognisi_mbkm: boolean, assigned_cpls: string[], assigned_bks: string[], metode_pembelajaran: string, tautan_mou: string}>({ kode: "", nama: "", sks: 3, kurikulum_id: "", semester: 1, sifat_mk: "Wajib", rekognisi_mbkm: false, assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" });
 
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
   const [cpmkForm, setCpmkForm] = useState<{id: string, kode: string, deskripsi: string, bobot: number, mata_kuliah_id: string}>({ id: "", kode: "", deskripsi: "", bobot: 0, mata_kuliah_id: "" });
@@ -34,16 +36,31 @@ export default function MappingPage() {
   const [subCpmkForm, setSubCpmkForm] = useState<{id: string, kode: string, deskripsi: string, bobot: number, metode_penilaian: string, instrumen_penilaian: string, cpmk_id: string}>({ id: "", kode: "", deskripsi: "", bobot: 0, metode_penilaian: "", instrumen_penilaian: "", cpmk_id: "" });
 
   useEffect(() => {
-    fetchData();
+    fetchInitialData();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (selectedKurikulum) {
+      fetchMappingData(selectedKurikulum);
+    }
+  }, [selectedKurikulum]);
+
+  const fetchInitialData = async () => {
+    const { data: kurData } = await supabase.from("kurikulum").select("*, prodi(nama)").order("tahun_berlaku", { ascending: false });
+    if (kurData && kurData.length > 0) {
+      setKurikulums(kurData);
+      setSelectedKurikulum(kurData[0].id);
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const fetchMappingData = async (kurikulumId: string) => {
     setLoading(true);
-    const [cplRes, bkRes, courseRes, prodiRes, mapCplRes, mapBkRes, cpmkRes, subRes] = await Promise.all([
-      supabase.from("cpl").select("*").order("kode"),
-      supabase.from("bahan_kajian").select("*").order("kode"),
-      supabase.from("mata_kuliah").select("*, prodi(nama)").order("kode"),
-      supabase.from("prodi").select("*").order("nama"),
+    const [cplRes, bkRes, courseRes, mapCplRes, mapBkRes, cpmkRes, subRes] = await Promise.all([
+      supabase.from("cpl").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
+      supabase.from("bahan_kajian").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
+      supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId).order("semester").order("kode"),
       supabase.from("mata_kuliah_cpl").select("*"),
       supabase.from("mata_kuliah_bk").select("*"),
       supabase.from("cpmk").select("*").order("kode"),
@@ -52,7 +69,6 @@ export default function MappingPage() {
     if (cplRes.data) setCpls(cplRes.data);
     if (bkRes.data) setBks(bkRes.data);
     if (courseRes.data) setCourses(courseRes.data);
-    if (prodiRes.data) setProdis(prodiRes.data);
     if (mapCplRes.data) setCourseCpls(mapCplRes.data);
     if (mapBkRes.data) setCourseBks(mapBkRes.data);
     if (cpmkRes.data) setCpmks(cpmkRes.data);
@@ -63,27 +79,45 @@ export default function MappingPage() {
   // COURSE Handlers
   const handleCourseSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data, error } = await supabase.from("mata_kuliah").insert([{ 
-      kode: courseForm.kode, nama: courseForm.nama, sks: courseForm.sks, prodi_id: courseForm.prodi_id,
-      metode_pembelajaran: courseForm.metode_pembelajaran, tautan_mou: courseForm.metode_pembelajaran !== 'REGULAR' ? courseForm.tautan_mou : null
-    }]).select("id").single();
-    
-    if (data && courseForm.assigned_cpls.length > 0) {
-      await supabase.from("mata_kuliah_cpl").insert(courseForm.assigned_cpls.map(cplId => ({ mata_kuliah_id: data.id, cpl_id: cplId, bobot: 0 })));
-    }
-    if (data && courseForm.assigned_bks.length > 0) {
-      await supabase.from("mata_kuliah_bk").insert(courseForm.assigned_bks.map(bkId => ({ mata_kuliah_id: data.id, bk_id: bkId })));
+    if (courseForm.id) {
+        await supabase.from("mata_kuliah").update({ 
+            kode: courseForm.kode, nama: courseForm.nama, sks: courseForm.sks, kurikulum_id: courseForm.kurikulum_id,
+            semester: courseForm.semester, sifat_mk: courseForm.sifat_mk, rekognisi_mbkm: courseForm.rekognisi_mbkm,
+            metode_pembelajaran: courseForm.metode_pembelajaran, tautan_mou: courseForm.metode_pembelajaran !== 'REGULAR' ? courseForm.tautan_mou : null
+        }).eq("id", courseForm.id);
+        
+        await supabase.from("mata_kuliah_cpl").delete().eq("mata_kuliah_id", courseForm.id);
+        await supabase.from("mata_kuliah_bk").delete().eq("mata_kuliah_id", courseForm.id);
+        
+        if (courseForm.assigned_cpls.length > 0) {
+            await supabase.from("mata_kuliah_cpl").insert(courseForm.assigned_cpls.map(cplId => ({ mata_kuliah_id: courseForm.id, cpl_id: cplId, bobot: 0 })));
+        }
+        if (courseForm.assigned_bks.length > 0) {
+            await supabase.from("mata_kuliah_bk").insert(courseForm.assigned_bks.map(bkId => ({ mata_kuliah_id: courseForm.id, bk_id: bkId })));
+        }
+    } else {
+        const { data, error } = await supabase.from("mata_kuliah").insert([{ 
+            kode: courseForm.kode, nama: courseForm.nama, sks: courseForm.sks, kurikulum_id: courseForm.kurikulum_id,
+            semester: courseForm.semester, sifat_mk: courseForm.sifat_mk, rekognisi_mbkm: courseForm.rekognisi_mbkm,
+            metode_pembelajaran: courseForm.metode_pembelajaran, tautan_mou: courseForm.metode_pembelajaran !== 'REGULAR' ? courseForm.tautan_mou : null
+        }]).select("id").single();
+        
+        if (data && courseForm.assigned_cpls.length > 0) {
+            await supabase.from("mata_kuliah_cpl").insert(courseForm.assigned_cpls.map(cplId => ({ mata_kuliah_id: data.id, cpl_id: cplId, bobot: 0 })));
+        }
+        if (data && courseForm.assigned_bks.length > 0) {
+            await supabase.from("mata_kuliah_bk").insert(courseForm.assigned_bks.map(bkId => ({ mata_kuliah_id: data.id, bk_id: bkId })));
+        }
     }
 
     setIsCourseModalOpen(false);
-    setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" });
-    fetchData();
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
   };
 
   const handleCourseDelete = async (id: string) => {
     if (confirm("Hapus mata kuliah ini beserta seluruh CPMK dan Sub-CPMK di dalamnya?")) {
       await supabase.from("mata_kuliah").delete().eq("id", id);
-      fetchData();
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
     }
   };
 
@@ -96,13 +130,13 @@ export default function MappingPage() {
       await supabase.from("cpmk").insert([{ kode: cpmkForm.kode, deskripsi: cpmkForm.deskripsi, bobot: cpmkForm.bobot, mata_kuliah_id: cpmkForm.mata_kuliah_id }]);
     }
     setIsCpmkModalOpen(false);
-    fetchData();
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
   };
   
   const handleCpmkDelete = async (id: string) => {
     if (confirm("Hapus CPMK ini beserta seluruh Sub-CPMK di dalamnya?")) {
       await supabase.from("cpmk").delete().eq("id", id);
-      fetchData();
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
     }
   };
 
@@ -122,13 +156,13 @@ export default function MappingPage() {
       }]);
     }
     setIsSubCpmkModalOpen(false);
-    fetchData();
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
   };
 
   const handleSubCpmkDelete = async (id: string) => {
     if (confirm("Hapus Sub-CPMK ini?")) {
       await supabase.from("sub_cpmk").delete().eq("id", id);
-      fetchData();
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
     }
   };
 
@@ -138,18 +172,29 @@ export default function MappingPage() {
     <div className="space-y-8 pb-10">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Course Builder (Curriculum Mapping)</h1>
-          <p className="text-gray-500">Bangun hierarki kurikulum Mata Kuliah mulai dari pemetaan CPL/BK hingga ke Sub-CPMK.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Course Builder (Mata Kuliah & Struktur Semester)</h1>
+          <p className="text-gray-500">Bangun struktur kurikulum per semester dan hierarki Mata Kuliah dari CPL ke Sub-CPMK.</p>
         </div>
-        <Button onClick={() => { setCourseForm({ kode: "", nama: "", sks: 3, prodi_id: prodis[0]?.id || "", assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" }); setIsCourseModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Tambah Mata Kuliah
-        </Button>
+        <div className="flex space-x-4">
+          <select 
+            className="p-2 border rounded-md shadow-sm bg-white min-w-[200px]"
+            value={selectedKurikulum}
+            onChange={(e) => setSelectedKurikulum(e.target.value)}
+          >
+            {kurikulums.map(k => (
+              <option key={k.id} value={k.id}>{k.nama} ({k.prodi?.nama})</option>
+            ))}
+          </select>
+          <Button onClick={() => { setCourseForm({ kode: "", nama: "", sks: 3, kurikulum_id: selectedKurikulum, semester: 1, sifat_mk: "Wajib", rekognisi_mbkm: false, assigned_cpls: [], assigned_bks: [], metode_pembelajaran: "REGULAR", tautan_mou: "" }); setIsCourseModalOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Tambah Mata Kuliah
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4">
         {courses.length === 0 && (
           <Card>
-            <CardContent className="py-8 text-center text-slate-500">Belum ada data Mata Kuliah</CardContent>
+            <CardContent className="py-8 text-center text-slate-500">Belum ada data Mata Kuliah di kurikulum ini</CardContent>
           </Card>
         )}
         
@@ -173,9 +218,17 @@ export default function MappingPage() {
                   <div>
                     <h3 className="font-bold text-lg text-slate-800">{course.kode} - {course.nama}</h3>
                     <div className="flex items-center text-sm text-slate-500 space-x-4 mt-1">
+                      <span>Semester {course.semester}</span>
+                      <span>•</span>
                       <span>{course.sks} SKS</span>
                       <span>•</span>
-                      <span>{course.prodi?.nama}</span>
+                      <span>{course.sifat_mk}</span>
+                      {course.rekognisi_mbkm && (
+                          <>
+                            <span>•</span>
+                            <span className="text-emerald-600 font-semibold">MBKM</span>
+                          </>
+                      )}
                       <span>•</span>
                       <span className="font-semibold text-primary">{courseCpmks.length} CPMK</span>
                     </div>
@@ -188,6 +241,26 @@ export default function MappingPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
+                  <Button variant="ghost" size="sm" onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setCourseForm({
+                          id: course.id,
+                          kode: course.kode,
+                          nama: course.nama,
+                          sks: course.sks,
+                          kurikulum_id: course.kurikulum_id,
+                          semester: course.semester,
+                          sifat_mk: course.sifat_mk,
+                          rekognisi_mbkm: course.rekognisi_mbkm,
+                          assigned_cpls: courseCpls.filter(m => m.mata_kuliah_id === course.id).map(m => m.cpl_id),
+                          assigned_bks: courseBks.filter(m => m.mata_kuliah_id === course.id).map(m => m.bk_id),
+                          metode_pembelajaran: course.metode_pembelajaran || "REGULAR",
+                          tautan_mou: course.tautan_mou || ""
+                      });
+                      setIsCourseModalOpen(true);
+                  }}>
+                    <Pencil className="w-4 h-4 text-slate-500" />
+                  </Button>
                   <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); handleCourseDelete(course.id); }}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -356,17 +429,16 @@ export default function MappingPage() {
       {/* 1. Modal Tambah Mata Kuliah */}
       {isCourseModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800">Tambah Mata Kuliah</h2>
+               <h2 className="text-xl font-bold text-slate-800">{courseForm.id ? "Edit Mata Kuliah" : "Tambah Mata Kuliah"}</h2>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <form id="courseForm" onSubmit={handleCourseSave} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-slate-700">Program Studi</label>
-                  <select required className="w-full p-2.5 border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" value={courseForm.prodi_id} onChange={e => setCourseForm({...courseForm, prodi_id: e.target.value})}>
-                    <option value="" disabled>Pilih Prodi</option>
-                    {prodis.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
+                  <label className="block text-sm font-medium mb-1 text-slate-700">Kurikulum</label>
+                  <select disabled className="w-full p-2.5 border border-slate-300 rounded-lg bg-slate-100 outline-none" value={courseForm.kurikulum_id}>
+                    {kurikulums.map(p => <option key={p.id} value={p.id}>{p.nama} ({p.prodi?.nama})</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -384,6 +456,28 @@ export default function MappingPage() {
                   <input required type="text" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" value={courseForm.nama} onChange={e => setCourseForm({...courseForm, nama: e.target.value})} placeholder="Contoh: Pemrograman Web" />
                 </div>
                 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Semester</label>
+                    <input required type="number" min="1" max="8" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" value={courseForm.semester} onChange={e => setCourseForm({...courseForm, semester: parseInt(e.target.value) || 1})} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">Sifat Mata Kuliah</label>
+                    <select className="w-full p-2.5 border border-slate-300 rounded-lg bg-white outline-none focus:border-primary" value={courseForm.sifat_mk} onChange={e => setCourseForm({...courseForm, sifat_mk: e.target.value})}>
+                      <option value="Wajib">Wajib</option>
+                      <option value="Pilihan">Pilihan</option>
+                      <option value="MKWK">MKWK</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                    <label className="flex items-center space-x-2 text-sm text-slate-700">
+                        <input type="checkbox" checked={courseForm.rekognisi_mbkm} onChange={e => setCourseForm({...courseForm, rekognisi_mbkm: e.target.checked})} className="rounded text-primary focus:ring-primary border-slate-300" />
+                        <span>Mata Kuliah Rekognisi MBKM</span>
+                    </label>
+                </div>
+
                 <div className="bg-purple-50 p-4 border border-purple-100 rounded-lg space-y-3">
                   <h4 className="text-sm font-bold text-purple-800">Metode Pembelajaran (IKU 5)</h4>
                   <div>
@@ -535,4 +629,3 @@ export default function MappingPage() {
     </div>
   );
 }
-

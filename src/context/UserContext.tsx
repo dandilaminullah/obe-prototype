@@ -2,47 +2,64 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type UserRole = 'ADMIN' | 'DOSEN' | 'AUDITOR';
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'DOSEN' | 'AUDITOR';
 
 interface UserContextType {
   role: UserRole;
   setRole: (role: UserRole) => void;
+  prodiId: string;
+  setProdiId: (id: string) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<UserRole>('ADMIN'); // Default role
-  const [isMounted, setIsMounted] = useState(false);
+  const [role, setRoleState] = useState<UserRole>('SUPERADMIN');
+  const [prodiId, setProdiIdState] = useState<string>('');
 
   useEffect(() => {
-    setIsMounted(true);
     // Read from cookie on mount
     const match = document.cookie.match(new RegExp('(^| )userRole=([^;]+)'));
     if (match) {
       const savedRole = match[2] as UserRole;
-      if (['ADMIN', 'DOSEN', 'AUDITOR'].includes(savedRole)) {
+      if (['SUPERADMIN', 'ADMIN', 'DOSEN', 'AUDITOR'].includes(savedRole)) {
         setRoleState(savedRole);
       }
     } else {
-      // If no cookie, set default cookie
-      document.cookie = `userRole=ADMIN; path=/; max-age=31536000`;
+      document.cookie = `userRole=SUPERADMIN; path=/; max-age=31536000`;
+    }
+
+    const prodiMatch = document.cookie.match(new RegExp('(^| )prodiId=([^;]+)'));
+    if (prodiMatch) {
+      setProdiIdState(prodiMatch[2]);
     }
   }, []);
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
     document.cookie = `userRole=${newRole}; path=/; max-age=31536000`;
-    // We reload to let the middleware handle the redirect based on the new role
-    window.location.href = '/'; 
+    
+    let targetPath = '/';
+    if (newRole === 'SUPERADMIN') {
+      targetPath = '/superadmin';
+    } else if (newRole === 'ADMIN') {
+      targetPath = '/admin';
+    } else if (newRole === 'DOSEN') {
+      targetPath = '/dosen';
+    } else if (newRole === 'AUDITOR') {
+      targetPath = '/auditor';
+    }
+
+    window.location.href = targetPath; 
   };
 
-  if (!isMounted) {
-    return null; // Avoid hydration mismatch
-  }
+  const setProdiId = (newProdiId: string) => {
+    setProdiIdState(newProdiId);
+    document.cookie = `prodiId=${newProdiId}; path=/; max-age=31536000`;
+  };
 
   return (
-    <UserContext.Provider value={{ role, setRole }}>
+    <UserContext.Provider value={{ role, setRole, prodiId, setProdiId }}>
       {children}
     </UserContext.Provider>
   );

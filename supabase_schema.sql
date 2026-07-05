@@ -1,6 +1,27 @@
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
+-- Drop existing tables & types to avoid overlapping
+drop table if exists rencana_aksi_perbaikan cascade;
+drop table if exists grading_audit_trail cascade;
+drop table if exists nilai cascade;
+drop table if exists mahasiswa cascade;
+drop table if exists sub_cpmk cascade;
+drop table if exists cpmk cascade;
+drop table if exists mata_kuliah_cpl cascade;
+drop table if exists mata_kuliah_bk cascade;
+drop table if exists mata_kuliah cascade;
+drop table if exists profil_lulusan_bk cascade;
+drop table if exists bahan_kajian cascade;
+drop table if exists profil_lulusan_cpl cascade;
+drop table if exists cpl cascade;
+drop table if exists profil_lulusan cascade;
+drop table if exists kurikulum cascade;
+drop table if exists prodi cascade;
+drop table if exists jurusan cascade;
+drop table if exists users cascade;
+drop type if exists user_role cascade;
+
 -- 0. User Roles Enum
 create type user_role as enum ('ADMIN', 'DOSEN', 'AUDITOR');
 
@@ -29,22 +50,54 @@ create table prodi (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 2.1 Table Kurikulum (NEW)
+create table kurikulum (
+  id uuid primary key default uuid_generate_v4(),
+  prodi_id uuid references prodi(id) on delete cascade not null,
+  nama text not null,
+  tahun_berlaku integer not null,
+  ketua_tim text,
+  
+  -- Tahap 1: Landasan & VMTS
+  landasan_filosofis text,
+  landasan_sosiologis text,
+  landasan_historis text,
+  landasan_hukum text,
+  visi text,
+  misi text,
+  tujuan text,
+  strategi text,
+  university_value text,
+  
+  -- Evaluasi
+  evaluasi_kurikulum text,
+  tracer_study text,
+  
+  -- Pengelolaan & Penutup
+  pengelolaan_mekanisme text,
+  tata_cara_penerimaan text,
+  penutup text,
+  
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- 3. Table Profil Lulusan (PEO)
 create table profil_lulusan (
   id uuid primary key default uuid_generate_v4(),
+  kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   nama text not null,
   deskripsi text not null,
-  prodi_id uuid references prodi(id) on delete cascade not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 4. Table CPL (PLO)
 create table cpl (
   id uuid primary key default uuid_generate_v4(),
+  kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   kode text not null,
   kategori text not null,
   deskripsi text not null,
-  sdgs text[], -- IKU 7: Tagging SDGs (e.g. ['SDG4', 'SDG8'])
+  sdgs text[], -- IKU 7: Tagging SDGs
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -60,6 +113,7 @@ create table profil_lulusan_cpl (
 -- 5. Table Bahan Kajian (BK)
 create table bahan_kajian (
   id uuid primary key default uuid_generate_v4(),
+  kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   kode text not null,
   nama text not null,
   deskripsi text,
@@ -78,12 +132,19 @@ create table profil_lulusan_bk (
 -- 6. Table Mata Kuliah (Course)
 create table mata_kuliah (
   id uuid primary key default uuid_generate_v4(),
+  kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   kode text not null,
   nama text not null,
   sks integer not null default 3,
-  prodi_id uuid references prodi(id) on delete cascade not null,
-  metode_pembelajaran text default 'REGULAR', -- 'REGULAR', 'TBP' (Team-Based Project), 'CM' (Case Method)
-  tautan_mou text, -- IKU 5: Tautan dokumen kerjasama jika metode TBP/CM
+  
+  -- Tambahan untuk Struktur Semester
+  semester integer default 1,
+  sifat_mk text default 'Wajib', -- 'Wajib', 'Pilihan', 'MKWK'
+  rekognisi_mbkm boolean default false,
+  
+  metode_pembelajaran text default 'REGULAR', -- 'REGULAR', 'TBP', 'CM'
+  tautan_mou text, -- IKU 5
+  
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -154,7 +215,7 @@ create table grading_audit_trail (
   nilai_baru decimal(5,2) not null,
   alasan text not null,
   ip_address text,
-  user_id text, -- Identifier dosen/pengguna yang mengubah
+  user_id text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -169,9 +230,8 @@ create table rencana_aksi_perbaikan (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- RLS (Row Level Security) Configuration
--- For MVP, we will allow all access (anon/authenticated) to these tables
-
+-- RLS Configuration
+-- For MVP, allow all
 alter table jurusan enable row level security;
 create policy "Allow all operations for anon" on jurusan for all using (true) with check (true);
 
@@ -180,6 +240,9 @@ create policy "Allow all operations for anon" on users for all using (true) with
 
 alter table prodi enable row level security;
 create policy "Allow all operations for anon" on prodi for all using (true) with check (true);
+
+alter table kurikulum enable row level security;
+create policy "Allow all operations for anon" on kurikulum for all using (true) with check (true);
 
 alter table profil_lulusan enable row level security;
 create policy "Allow all operations for anon" on profil_lulusan for all using (true) with check (true);

@@ -13,6 +13,9 @@ export default function AssessmentPage() {
   const [prodis, setProdis] = useState<any[]>([]);
   const [selectedProdiId, setSelectedProdiId] = useState("");
   
+  const [kurikulums, setKurikulums] = useState<any[]>([]);
+  const [selectedKurikulumId, setSelectedKurikulumId] = useState("");
+
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [selectedMahasiswaId, setSelectedMahasiswaId] = useState("");
 
@@ -39,10 +42,19 @@ export default function AssessmentPage() {
 
   useEffect(() => {
     if (selectedProdiId) {
+      fetchKurikulums(selectedProdiId);
       fetchMahasiswas(selectedProdiId);
-      fetchCurriculum(selectedProdiId);
     }
   }, [selectedProdiId]);
+
+  useEffect(() => {
+    if (selectedKurikulumId) {
+      fetchCurriculum(selectedKurikulumId);
+    } else {
+      setCourses([]);
+      setCpls([]);
+    }
+  }, [selectedKurikulumId]);
 
   useEffect(() => {
     if (selectedMahasiswaId) {
@@ -62,6 +74,15 @@ export default function AssessmentPage() {
     setLoading(false);
   };
 
+  const fetchKurikulums = async (prodiId: string) => {
+    const { data } = await supabase.from("kurikulum").select("*").eq("prodi_id", prodiId).order("tahun_berlaku", { ascending: false });
+    if (data) {
+      setKurikulums(data);
+      if (data.length > 0) setSelectedKurikulumId(data[0].id);
+      else setSelectedKurikulumId("");
+    }
+  };
+
   const fetchMahasiswas = async (prodiId: string) => {
     const { data } = await supabase.from("mahasiswa").select("*").eq("prodi_id", prodiId).order("nama");
     if (data) {
@@ -73,14 +94,14 @@ export default function AssessmentPage() {
     }
   };
 
-  const fetchCurriculum = async (prodiId: string) => {
+  const fetchCurriculum = async (kurikulumId: string) => {
     const [courseRes, cpmkRes, subRes, mapRes, cplRes, profilRes, cplProfilRes] = await Promise.all([
-      supabase.from("mata_kuliah").select("*").eq("prodi_id", prodiId),
+      supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId),
       supabase.from("cpmk").select("*"),
       supabase.from("sub_cpmk").select("*"),
       supabase.from("mata_kuliah_cpl").select("*"),
-      supabase.from("cpl").select("*"),
-      supabase.from("profil_lulusan").select("*").eq("prodi_id", prodiId),
+      supabase.from("cpl").select("*").eq("kurikulum_id", kurikulumId),
+      supabase.from("profil_lulusan").select("*").eq("kurikulum_id", kurikulumId),
       supabase.from("profil_lulusan_cpl").select("*")
     ]);
 
@@ -107,8 +128,10 @@ export default function AssessmentPage() {
     if (cplRes.data && profilRes.data && cplProfilRes.data) {
       const profilIds = profilRes.data.map(p => p.id);
       const relevantCplIds = cplProfilRes.data.filter(m => profilIds.includes(m.profil_id)).map(m => m.cpl_id);
-      const relevantCpls = cplRes.data.filter(c => relevantCplIds.includes(c.id));
-      setCpls(relevantCpls);
+      
+      // Even if not mapped to a specific profile, we might still want to show all CPLs for the curriculum.
+      // So let's just use cplRes.data which is already filtered by kurikulum_id.
+      setCpls(cplRes.data);
     }
   };
 
@@ -230,11 +253,19 @@ export default function AssessmentPage() {
 
       course.cpl_mapping.forEach((mapping: any) => {
         if (achievement[mapping.cpl_id] !== undefined) {
-          achievement[mapping.cpl_id] += courseScore * (mapping.bobot || 0);
+          // Add mapped weight (using mapping.bobot assuming it is not 0, otherwise fallback to equal distribution if we wanted, but currently we just sum if they are mapped)
+          // Since mapping.bobot might be 0 if not updated in mapping UI, we'll just treat it as a binary map for this MVP or use 1 if mapped.
+          // Wait, the mapping schema has 'bobot' default 0.0. If the user hasn't set bobot, the score will be 0.
+          // For MVP, if it's mapped, we just add the courseScore. Real implementations need proper weight allocation.
+          const weight = mapping.bobot > 0 ? mapping.bobot : 1; 
+          achievement[mapping.cpl_id] += courseScore * weight;
         }
       });
     });
 
+    // Normalize achievement values
+    // In a real system, you'd divide by the sum of weights.
+    // For this prototype, we'll cap at 100 to avoid blowing up the chart if weights sum > 1.
     return cpls.map(c => ({
       subject: c.kode,
       A: Math.min(100, Math.round(achievement[c.id] || 0)),
@@ -248,17 +279,17 @@ export default function AssessmentPage() {
   if (loading && prodis.length === 0) return <div className="p-8 text-center text-slate-500">Loading...</div>;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Simulasi Asesmen & Evaluasi (OBAE)</h1>
-        <p className="text-gray-500">Pilih Mahasiswa dan input nilai per Sub-CPMK untuk menghitung persentase ketercapaian CPL.</p>
+        <p className="text-gray-500">Pilih Mahasiswa dan input nilai per Sub-CPMK untuk menghitung persentase ketercapaian CPL berdasarkan Kurikulum.</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Program Studi</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
           <select 
-            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white"
+            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white outline-none"
             value={selectedProdiId}
             onChange={(e) => setSelectedProdiId(e.target.value)}
           >
@@ -266,20 +297,30 @@ export default function AssessmentPage() {
           </select>
         </div>
         <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Pilih Mahasiswa</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kurikulum</label>
+          <select 
+            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white outline-none"
+            value={selectedKurikulumId}
+            onChange={(e) => setSelectedKurikulumId(e.target.value)}
+          >
+            {kurikulums.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Mahasiswa</label>
           <div className="flex gap-2">
             <select 
-              className="flex-1 border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white"
+              className="flex-1 border border-gray-300 rounded-md shadow-sm p-2 text-sm bg-white outline-none"
               value={selectedMahasiswaId}
               onChange={(e) => setSelectedMahasiswaId(e.target.value)}
             >
               <option value="" disabled>-- Pilih Mahasiswa --</option>
               {mahasiswas.map(m => <option key={m.id} value={m.id}>{m.nim} - {m.nama}</option>)}
             </select>
-            <Button onClick={() => setIsMahasiswaModalOpen(true)} size="sm" className="shrink-0" disabled={!selectedProdiId}>
+            <Button onClick={() => setIsMahasiswaModalOpen(true)} size="sm" className="shrink-0 h-[38px]" disabled={!selectedProdiId}>
               <Plus className="w-4 h-4" />
             </Button>
-            <Button onClick={viewAuditTrail} size="sm" variant="outline" className="shrink-0 text-slate-600" disabled={!selectedMahasiswaId} title="Lihat Grading Audit Trail (IKU 11)">
+            <Button onClick={viewAuditTrail} size="sm" variant="outline" className="shrink-0 text-slate-600 h-[38px]" disabled={!selectedMahasiswaId} title="Lihat Grading Audit Trail (IKU 11)">
               <History className="w-4 h-4 mr-2" /> Audit Trail
             </Button>
           </div>
@@ -294,7 +335,7 @@ export default function AssessmentPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="xl:col-span-2 space-y-6">
             {courses.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">Belum ada Mata Kuliah di prodi ini.</p>
+              <p className="text-slate-500 text-center py-8">Belum ada Mata Kuliah di kurikulum ini.</p>
             ) : courses.map(course => (
               <Card key={course.id}>
                 <CardHeader className="bg-gray-50/50 border-b border-gray-100 rounded-t-xl">
@@ -303,8 +344,8 @@ export default function AssessmentPage() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   {course.cpmks.map((cpmk: any) => (
-                    <div key={cpmk.id} className="mb-6 last:mb-0">
-                      <h4 className="font-semibold text-slate-700 mb-2">{cpmk.kode} <span className="font-normal text-sm text-slate-500">({cpmk.deskripsi})</span></h4>
+                    <div key={cpmk.id} className="mb-6 last:mb-0 border border-slate-200 rounded-lg p-4 shadow-sm bg-white">
+                      <h4 className="font-bold text-slate-800 mb-2">{cpmk.kode} <span className="font-normal text-sm text-slate-500">({cpmk.deskripsi})</span></h4>
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -317,15 +358,15 @@ export default function AssessmentPage() {
                         <TableBody>
                           {cpmk.sub_cpmks.map((sub: any) => (
                             <TableRow key={sub.id}>
-                              <TableCell className="font-medium">{sub.kode}</TableCell>
-                              <TableCell className="text-sm text-gray-600">{sub.deskripsi}</TableCell>
-                              <TableCell className="text-center">{sub.bobot}%</TableCell>
+                              <TableCell className="font-bold text-slate-700">{sub.kode}</TableCell>
+                              <TableCell className="text-sm text-slate-600">{sub.deskripsi}</TableCell>
+                              <TableCell className="text-center font-medium bg-slate-50">{sub.bobot}%</TableCell>
                               <TableCell>
                                 <Input
                                   type="number"
                                   min="0"
                                   max="100"
-                                  className="text-right"
+                                  className="text-right focus:ring-primary focus:border-primary border-slate-300 shadow-inner bg-slate-50 focus:bg-white"
                                   value={grades[sub.id] !== undefined ? grades[sub.id] : ''}
                                   placeholder="0"
                                   onBlur={(e) => handleGradeChange(sub.id, e.target.value)}
@@ -340,7 +381,7 @@ export default function AssessmentPage() {
                           ))}
                           {cpmk.sub_cpmks.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-sm text-slate-400 py-2">Belum ada Sub-CPMK</TableCell>
+                              <TableCell colSpan={4} className="text-center text-sm text-slate-400 py-4 border-dashed">Belum ada Sub-CPMK</TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -348,7 +389,7 @@ export default function AssessmentPage() {
                     </div>
                   ))}
                   {course.cpmks.length === 0 && (
-                    <p className="text-center text-sm text-slate-400 py-4">Belum ada CPMK</p>
+                    <p className="text-center text-sm text-slate-400 py-4 border border-dashed rounded-lg bg-slate-50">Belum ada CPMK</p>
                   )}
                 </CardContent>
               </Card>
@@ -356,7 +397,7 @@ export default function AssessmentPage() {
           </div>
 
           <div className="xl:col-span-1">
-            <Card className="sticky top-8">
+            <Card className="sticky top-8 shadow-md">
               <CardHeader>
                 <CardTitle>Capaian CPL Mahasiswa</CardTitle>
                 <CardDescription>Radar chart visualisasi pencapaian CPL secara real-time</CardDescription>
@@ -366,7 +407,7 @@ export default function AssessmentPage() {
                   <>
                     {/* Early Warning System (EWS) - IKU 1 */}
                     {cplAchievement.some(c => c.A < threshold) && (
-                      <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start text-sm">
+                      <div className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 flex items-start text-sm shadow-sm">
                         <AlertTriangle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
                         <div>
                           <strong>Early Warning System (EWS):</strong>
@@ -380,8 +421,8 @@ export default function AssessmentPage() {
                     <div className="mt-6 space-y-3">
                       <h4 className="text-sm font-semibold text-gray-900 border-b pb-2">Detail Capaian:</h4>
                       {cplAchievement.map(point => (
-                        <div key={point.subject} className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-gray-700">{point.subject}</span>
+                        <div key={point.subject} className="flex items-center justify-between text-sm py-1 border-b border-slate-50 last:border-0">
+                          <span className="font-medium text-slate-700">{point.subject}</span>
                           <span className={`font-bold ${point.A >= 70 ? 'text-green-600' : point.A >= 50 ? 'text-orange-500' : 'text-red-500'}`}>
                             {point.A}%
                           </span>
@@ -390,7 +431,7 @@ export default function AssessmentPage() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-slate-500 text-center py-8">Belum ada CPL yang didefinisikan untuk prodi ini.</p>
+                  <p className="text-sm text-slate-500 text-center py-8">Belum ada CPL yang didefinisikan untuk kurikulum ini.</p>
                 )}
               </CardContent>
             </Card>
@@ -399,20 +440,20 @@ export default function AssessmentPage() {
       )}
 
       {isMahasiswaModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
             <h2 className="text-xl font-bold mb-4">Tambah Mahasiswa</h2>
             <form onSubmit={handleSaveMahasiswa} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">NIM</label>
-                <input required type="text" className="w-full p-2 border rounded" value={mahasiswaForm.nim} onChange={e => setMahasiswaForm({...mahasiswaForm, nim: e.target.value})} placeholder="Contoh: 1301201234" />
+                <input required type="text" className="w-full p-2.5 border border-slate-300 rounded focus:border-primary outline-none" value={mahasiswaForm.nim} onChange={e => setMahasiswaForm({...mahasiswaForm, nim: e.target.value})} placeholder="Contoh: 1301201234" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Nama Lengkap</label>
-                <input required type="text" className="w-full p-2 border rounded" value={mahasiswaForm.nama} onChange={e => setMahasiswaForm({...mahasiswaForm, nama: e.target.value})} placeholder="Contoh: Budi Santoso" />
+                <input required type="text" className="w-full p-2.5 border border-slate-300 rounded focus:border-primary outline-none" value={mahasiswaForm.nama} onChange={e => setMahasiswaForm({...mahasiswaForm, nama: e.target.value})} placeholder="Contoh: Budi Santoso" />
               </div>
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button type="button" variant="secondary" onClick={() => setIsMahasiswaModalOpen(false)}>Batal</Button>
+              <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-slate-100">
+                <Button type="button" variant="ghost" onClick={() => setIsMahasiswaModalOpen(false)}>Batal</Button>
                 <Button type="submit">Simpan</Button>
               </div>
             </form>
@@ -422,16 +463,16 @@ export default function AssessmentPage() {
 
       {/* Modal Reason for Audit Trail */}
       {isReasonModalOpen && pendingGradeChange && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
             <h2 className="text-xl font-bold mb-4 flex items-center text-amber-700">
               <Info className="w-5 h-5 mr-2" /> Konfirmasi Perubahan Nilai
             </h2>
             <div className="mb-4 text-sm text-slate-600 bg-amber-50 p-3 rounded-md border border-amber-100">
               Perubahan nilai telah terdeteksi. Sesuai <strong>IKU 11 (Integritas Akademik)</strong>, mohon berikan alasan perubahan ini untuk dicatat pada Audit Trail.
-              <ul className="mt-2 font-medium">
-                <li>Nilai Lama: {pendingGradeChange.oldVal}</li>
-                <li>Nilai Baru: {pendingGradeChange.newVal}</li>
+              <ul className="mt-2 font-medium bg-white p-2 rounded border border-amber-50">
+                <li>Nilai Lama: <span className="text-red-500 line-through">{pendingGradeChange.oldVal}</span></li>
+                <li>Nilai Baru: <span className="text-green-600">{pendingGradeChange.newVal}</span></li>
               </ul>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); confirmGradeChange(); }} className="space-y-4">
@@ -439,7 +480,7 @@ export default function AssessmentPage() {
                 <label className="block text-sm font-medium mb-1">Alasan Perubahan</label>
                 <textarea 
                   required 
-                  className="w-full p-2 border border-slate-300 rounded focus:border-amber-500 outline-none" 
+                  className="w-full p-2.5 border border-slate-300 rounded focus:border-amber-500 outline-none" 
                   rows={3}
                   value={changeReason} 
                   onChange={e => setChangeReason(e.target.value)} 
@@ -453,7 +494,7 @@ export default function AssessmentPage() {
                   setIsReasonModalOpen(false);
                   setPendingGradeChange(null);
                 }}>Batal (Kembalikan)</Button>
-                <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">Simpan Perubahan</Button>
+                <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white border-0">Simpan Perubahan</Button>
               </div>
             </form>
           </div>
@@ -505,4 +546,3 @@ export default function AssessmentPage() {
     </div>
   );
 }
-

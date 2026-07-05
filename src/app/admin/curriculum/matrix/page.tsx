@@ -7,6 +7,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Check } from "lucide-react";
 
 export default function MatrixMappingPage() {
+  const [kurikulums, setKurikulums] = useState<any[]>([]);
+  const [selectedKurikulum, setSelectedKurikulum] = useState<string>("");
+
   const [courses, setCourses] = useState<any[]>([]);
   const [bks, setBks] = useState<any[]>([]);
   const [cpls, setCpls] = useState<any[]>([]);
@@ -16,15 +19,31 @@ export default function MatrixMappingPage() {
   const [activeTab, setActiveTab] = useState<"bk" | "cpl">("bk");
 
   useEffect(() => {
-    fetchData();
+    fetchInitialData();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    if (selectedKurikulum) {
+      fetchMatrixData(selectedKurikulum);
+    }
+  }, [selectedKurikulum]);
+
+  const fetchInitialData = async () => {
+    const { data: kurData } = await supabase.from("kurikulum").select("*, prodi(nama)").order("tahun_berlaku", { ascending: false });
+    if (kurData && kurData.length > 0) {
+      setKurikulums(kurData);
+      setSelectedKurikulum(kurData[0].id);
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const fetchMatrixData = async (kurikulumId: string) => {
     setLoading(true);
     const [courseRes, bkRes, cplRes, mapBkRes, mapCplRes] = await Promise.all([
-      supabase.from("mata_kuliah").select("*").order("kode"),
-      supabase.from("bahan_kajian").select("*").order("kode"),
-      supabase.from("cpl").select("*").order("kode"),
+      supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
+      supabase.from("bahan_kajian").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
+      supabase.from("cpl").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
       supabase.from("mata_kuliah_bk").select("*"),
       supabase.from("mata_kuliah_cpl").select("*")
     ]);
@@ -60,9 +79,22 @@ export default function MatrixMappingPage() {
 
   return (
     <div className="space-y-8 pb-10">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Matriks Kurikulum</h1>
-        <p className="text-gray-500">Visualisasi pemetaan Mata Kuliah ke Bahan Kajian (BK) dan Capaian Pembelajaran Lulusan (CPL).</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Matriks Kurikulum</h1>
+          <p className="text-gray-500">Visualisasi pemetaan Mata Kuliah ke Bahan Kajian (BK) dan Capaian Pembelajaran Lulusan (CPL).</p>
+        </div>
+        <div>
+          <select 
+            className="p-2 border rounded-md shadow-sm bg-white min-w-[200px]"
+            value={selectedKurikulum}
+            onChange={(e) => setSelectedKurikulum(e.target.value)}
+          >
+            {kurikulums.map(k => (
+              <option key={k.id} value={k.id}>{k.nama} ({k.prodi?.nama})</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex space-x-2 border-b border-slate-200">
@@ -134,7 +166,7 @@ export default function MatrixMappingPage() {
               {courses.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={(activeTab === 'bk' ? bks.length : cpls.length) + 1} className="text-center py-8 text-slate-500">
-                    Belum ada data Mata Kuliah.
+                    Belum ada data Mata Kuliah di kurikulum ini.
                   </TableCell>
                 </TableRow>
               )}
@@ -145,4 +177,3 @@ export default function MatrixMappingPage() {
     </div>
   );
 }
-

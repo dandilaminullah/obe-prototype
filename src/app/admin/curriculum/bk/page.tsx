@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/Button";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function BahanKajianPage() {
+  const [kurikulums, setKurikulums] = useState<any[]>([]);
   const [bks, setBks] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [bkProfils, setBkProfils] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState<{ id: string; kode: string; nama: string; deskripsi: string; assigned_profils: string[] }>({
-    id: "", kode: "", nama: "", deskripsi: "", assigned_profils: []
+  const [formData, setFormData] = useState<{ id: string; kode: string; nama: string; deskripsi: string; assigned_profils: string[]; kurikulum_id: string }>({
+    id: "", kode: "", nama: "", deskripsi: "", assigned_profils: [], kurikulum_id: ""
   });
 
   useEffect(() => {
@@ -24,11 +25,13 @@ export default function BahanKajianPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [bkRes, profileRes, mapRes] = await Promise.all([
-      supabase.from("bahan_kajian").select("*").order("kode"),
-      supabase.from("profil_lulusan").select("*, prodi(nama)").order("nama"),
+    const [kurRes, bkRes, profileRes, mapRes] = await Promise.all([
+      supabase.from("kurikulum").select("*, prodi(nama)").order("tahun_berlaku", { ascending: false }),
+      supabase.from("bahan_kajian").select("*, kurikulum(nama)").order("kode"),
+      supabase.from("profil_lulusan").select("*, kurikulum(nama, prodi(nama))").order("nama"),
       supabase.from("profil_lulusan_bk").select("*")
     ]);
+    if (kurRes.data) setKurikulums(kurRes.data);
     if (bkRes.data) setBks(bkRes.data);
     if (profileRes.data) setProfiles(profileRes.data);
     if (mapRes.data) setBkProfils(mapRes.data);
@@ -38,7 +41,7 @@ export default function BahanKajianPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.id) {
-      await supabase.from("bahan_kajian").update({ kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi }).eq("id", formData.id);
+      await supabase.from("bahan_kajian").update({ kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi, kurikulum_id: formData.kurikulum_id }).eq("id", formData.id);
       await supabase.from("profil_lulusan_bk").delete().eq("bk_id", formData.id);
       
       if (formData.assigned_profils.length > 0) {
@@ -47,7 +50,7 @@ export default function BahanKajianPage() {
         );
       }
     } else {
-      const { data } = await supabase.from("bahan_kajian").insert([{ kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi }]).select("id").single();
+      const { data } = await supabase.from("bahan_kajian").insert([{ kode: formData.kode, nama: formData.nama, deskripsi: formData.deskripsi, kurikulum_id: formData.kurikulum_id }]).select("id").single();
       if (data && formData.assigned_profils.length > 0) {
         await supabase.from("profil_lulusan_bk").insert(
           formData.assigned_profils.map(pid => ({ bk_id: data.id, profil_id: pid }))
@@ -71,13 +74,13 @@ export default function BahanKajianPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Bahan Kajian</h1>
-        <p className="text-gray-500">Manajemen Bahan Kajian (Study Material) dan pemetaannya terhadap Profil Lulusan.</p>
+        <p className="text-gray-500">Manajemen Bahan Kajian (Study Material) dan pemetaannya terhadap Profil Lulusan per Kurikulum.</p>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row justify-between items-center space-y-0 pb-4">
           <CardTitle>Daftar Bahan Kajian</CardTitle>
-          <Button onClick={() => { setFormData({ id: "", kode: "", nama: "", deskripsi: "", assigned_profils: [] }); setIsModalOpen(true); }} size="sm">
+          <Button onClick={() => { setFormData({ id: "", kode: "", nama: "", deskripsi: "", assigned_profils: [], kurikulum_id: kurikulums[0]?.id || "" }); setIsModalOpen(true); }} size="sm">
             <Plus className="w-4 h-4 mr-2" /> Tambah BK
           </Button>
         </CardHeader>
@@ -85,6 +88,7 @@ export default function BahanKajianPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Kurikulum</TableHead>
                 <TableHead>Kode</TableHead>
                 <TableHead>Nama Bahan Kajian</TableHead>
                 <TableHead>Deskripsi</TableHead>
@@ -95,6 +99,7 @@ export default function BahanKajianPage() {
             <TableBody>
               {bks.map((bk) => (
                 <TableRow key={bk.id}>
+                  <TableCell>{bk.kurikulum?.nama}</TableCell>
                   <TableCell className="font-medium">{bk.kode}</TableCell>
                   <TableCell>{bk.nama}</TableCell>
                   <TableCell className="text-gray-500">{bk.deskripsi}</TableCell>
@@ -113,7 +118,7 @@ export default function BahanKajianPage() {
                   <TableCell className="text-right space-x-2">
                     <Button variant="secondary" size="sm" onClick={() => {
                       const assigned = bkProfils.filter(m => m.bk_id === bk.id).map(m => m.profil_id);
-                      setFormData({ id: bk.id, kode: bk.kode, nama: bk.nama, deskripsi: bk.deskripsi, assigned_profils: assigned });
+                      setFormData({ id: bk.id, kode: bk.kode, nama: bk.nama, deskripsi: bk.deskripsi, assigned_profils: assigned, kurikulum_id: bk.kurikulum_id });
                       setIsModalOpen(true);
                     }}>
                       <Pencil className="w-4 h-4" />
@@ -126,7 +131,7 @@ export default function BahanKajianPage() {
               ))}
               {bks.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-500">Belum ada data Bahan Kajian</TableCell>
+                  <TableCell colSpan={6} className="text-center text-slate-500">Belum ada data Bahan Kajian</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -136,9 +141,16 @@ export default function BahanKajianPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md my-8 overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl font-bold mb-4">{formData.id ? "Edit Bahan Kajian" : "Tambah Bahan Kajian"}</h2>
             <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Kurikulum</label>
+                <select required className="w-full p-2 border rounded bg-white" value={formData.kurikulum_id} onChange={e => setFormData({...formData, kurikulum_id: e.target.value, assigned_profils: []})}>
+                  <option value="" disabled>Pilih Kurikulum</option>
+                  {kurikulums.map(k => <option key={k.id} value={k.id}>{k.nama} ({k.prodi?.nama})</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Kode BK</label>
                 <input required type="text" className="w-full p-2 border rounded" value={formData.kode} onChange={e => setFormData({ ...formData, kode: e.target.value })} placeholder="Contoh: BK01" />
@@ -150,7 +162,7 @@ export default function BahanKajianPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Target Profil Lulusan (Multiple Selection)</label>
                 <div className="max-h-40 overflow-y-auto border rounded p-2 bg-slate-50 space-y-2">
-                  {profiles.map(p => (
+                  {profiles.filter(p => p.kurikulum_id === formData.kurikulum_id).map(p => (
                     <label key={p.id} className="flex items-center space-x-2 text-sm">
                       <input
                         type="checkbox"
@@ -163,10 +175,10 @@ export default function BahanKajianPage() {
                           }
                         }}
                       />
-                      <span><strong className="text-slate-700">{p.nama}</strong> - <span className="text-slate-500">{p.prodi?.nama}</span></span>
+                      <span><strong className="text-slate-700">{p.nama}</strong></span>
                     </label>
                   ))}
-                  {profiles.length === 0 && <span className="text-sm text-slate-400 italic">Belum ada Profil Lulusan</span>}
+                  {profiles.filter(p => p.kurikulum_id === formData.kurikulum_id).length === 0 && <span className="text-sm text-slate-400 italic">Pilih kurikulum terlebih dahulu / Belum ada Profil di kurikulum ini</span>}
                 </div>
               </div>
               <div>
@@ -184,4 +196,3 @@ export default function BahanKajianPage() {
     </div>
   );
 }
-
