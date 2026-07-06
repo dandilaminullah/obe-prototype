@@ -63,7 +63,6 @@ export default function AdminDashboardPage() {
           id: cpl.id,
           kode: cpl.kode,
           deskripsi: cpl.deskripsi,
-          sdgs: cpl.sdgs,
           averageScore: avg,
           isPassed: avg >= (prodi?.batas_kelulusan_cpl || 60)
         };
@@ -76,14 +75,13 @@ export default function AdminDashboardPage() {
 
   const passedCPLs = cplAverages.filter(c => c.isPassed).length;
   const failedCPLs = cplAverages.filter(c => !c.isPassed).length;
-  const totalIKU7Tags = cplAverages.reduce((sum, cpl) => sum + (cpl.sdgs ? cpl.sdgs.length : 0), 0);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Dashboard Admin Prodi</h1>
-          <p className="text-slate-500">Monitoring Agregat Capaian Pembelajaran & IKU 7</p>
+          <p className="text-slate-500">Monitoring Agregat Capaian Pembelajaran</p>
         </div>
         <div>
           <select 
@@ -100,7 +98,7 @@ export default function AdminDashboardPage() {
 
       {!loading && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-6 flex items-center space-x-4">
                 <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
@@ -133,18 +131,6 @@ export default function AdminDashboardPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-500">CPL Di Bawah Threshold</p>
                   <h3 className="text-2xl font-bold text-red-600">{failedCPLs}</h3>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6 flex items-center space-x-4">
-                <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Tag SDGs (IKU 7)</p>
-                  <h3 className="text-2xl font-bold text-purple-600">{totalIKU7Tags}</h3>
                 </div>
               </CardContent>
             </Card>

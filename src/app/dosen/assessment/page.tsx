@@ -95,11 +95,12 @@ export default function AssessmentPage() {
   };
 
   const fetchCurriculum = async (kurikulumId: string) => {
-    const [courseRes, cpmkRes, subRes, mapRes, cplRes, profilRes, cplProfilRes] = await Promise.all([
+    const [courseRes, cpmkRes, subRes, mapBkRes, bkRes, cplRes, profilRes, cplProfilRes] = await Promise.all([
       supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId),
       supabase.from("cpmk").select("*"),
       supabase.from("sub_cpmk").select("*"),
-      supabase.from("mata_kuliah_cpl").select("*"),
+      supabase.from("mata_kuliah_bk").select("*"),
+      supabase.from("bahan_kajian").select("*"),
       supabase.from("cpl").select("*").eq("kurikulum_id", kurikulumId),
       supabase.from("profil_lulusan").select("*").eq("kurikulum_id", kurikulumId),
       supabase.from("profil_lulusan_cpl").select("*")
@@ -114,7 +115,11 @@ export default function AssessmentPage() {
           sub_cpmks: (subRes.data || []).filter(s => s.cpmk_id === cpmk.id)
         }));
         
-        const mappings = (mapRes.data || []).filter(m => m.mata_kuliah_id === course.id);
+        const courseBks = (mapBkRes.data || []).filter(m => m.mata_kuliah_id === course.id);
+        const mappings = courseBks.map(m => {
+          const bk = (bkRes.data || []).find(b => b.id === m.bk_id);
+          return bk?.cpl_id ? { cpl_id: bk.cpl_id } : null;
+        }).filter(Boolean);
         
         return {
           ...course,

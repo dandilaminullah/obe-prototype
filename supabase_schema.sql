@@ -6,9 +6,9 @@ drop table if exists rencana_aksi_perbaikan cascade;
 drop table if exists grading_audit_trail cascade;
 drop table if exists nilai cascade;
 drop table if exists mahasiswa cascade;
+drop table if exists topik_materi_pembelajaran cascade;
 drop table if exists sub_cpmk cascade;
 drop table if exists cpmk cascade;
-drop table if exists mata_kuliah_cpl cascade;
 drop table if exists mata_kuliah_bk cascade;
 drop table if exists mata_kuliah cascade;
 drop table if exists profil_lulusan_bk cascade;
@@ -95,9 +95,7 @@ create table cpl (
   id uuid primary key default uuid_generate_v4(),
   kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   kode text not null,
-  kategori text not null,
   deskripsi text not null,
-  sdgs text[], -- IKU 7: Tagging SDGs
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -114,19 +112,10 @@ create table profil_lulusan_cpl (
 create table bahan_kajian (
   id uuid primary key default uuid_generate_v4(),
   kurikulum_id uuid references kurikulum(id) on delete cascade not null,
+  cpl_id uuid references cpl(id) on delete set null,
   kode text not null,
   nama text not null,
-  deskripsi text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
--- Junction Table: PEO to BK (Many-to-Many)
-create table profil_lulusan_bk (
-  id uuid primary key default uuid_generate_v4(),
-  profil_id uuid references profil_lulusan(id) on delete cascade not null,
-  bk_id uuid references bahan_kajian(id) on delete cascade not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  unique(profil_id, bk_id)
 );
 
 -- 6. Table Mata Kuliah (Course)
@@ -135,16 +124,31 @@ create table mata_kuliah (
   kurikulum_id uuid references kurikulum(id) on delete cascade not null,
   kode text not null,
   nama text not null,
-  sks integer not null default 3,
+  sks integer,
+  sks_teori integer default 0,
+  sks_praktikum integer default 0,
+  sks_lapangan integer default 0,
   
   -- Tambahan untuk Struktur Semester
-  semester integer default 1,
-  sifat_mk text default 'Wajib', -- 'Wajib', 'Pilihan', 'MKWK'
+  semester integer,
+  sifat_mk text, -- 'Wajib', 'Pilihan', 'MKWK'
   rekognisi_mbkm boolean default false,
   
-  metode_pembelajaran text default 'REGULAR', -- 'REGULAR', 'TBP', 'CM'
+  metode_pembelajaran text, -- 'REGULAR', 'TBP', 'CM'
   tautan_mou text, -- IKU 5
   
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 6.1 Table Topik Materi Pembelajaran
+create table topik_materi_pembelajaran (
+  id uuid primary key default uuid_generate_v4(),
+  mata_kuliah_id uuid references mata_kuliah(id) on delete cascade not null,
+  urutan integer default 1,
+  nama text not null,
+  kedalaman_k integer default 0, -- Kognitif
+  kedalaman_a integer default 0, -- Afektif
+  kedalaman_p integer default 0, -- Psikomotorik
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -157,22 +161,17 @@ create table mata_kuliah_bk (
   unique(mata_kuliah_id, bk_id)
 );
 
--- 7. Matrix Mata Kuliah - CPL (Mapping Course to CPL with weight)
-create table mata_kuliah_cpl (
-  id uuid primary key default uuid_generate_v4(),
-  mata_kuliah_id uuid references mata_kuliah(id) on delete cascade not null,
-  cpl_id uuid references cpl(id) on delete cascade not null,
-  bobot decimal(5,2) not null default 0.0,
-  unique(mata_kuliah_id, cpl_id)
-);
-
 -- 7. Table CPMK
 create table cpmk (
   id uuid primary key default uuid_generate_v4(),
   kode text not null,
   deskripsi text not null,
   bobot decimal(5,2) not null default 0.0,
+  kedalaman_k integer default 0, -- Kognitif
+  kedalaman_a integer default 0, -- Afektif
+  kedalaman_p integer default 0, -- Psikomotorik
   mata_kuliah_id uuid references mata_kuliah(id) on delete cascade not null,
+  bk_id uuid references bahan_kajian(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -253,8 +252,8 @@ create policy "Allow all operations for anon" on cpl for all using (true) with c
 alter table mata_kuliah enable row level security;
 create policy "Allow all operations for anon" on mata_kuliah for all using (true) with check (true);
 
-alter table mata_kuliah_cpl enable row level security;
-create policy "Allow all operations for anon" on mata_kuliah_cpl for all using (true) with check (true);
+alter table topik_materi_pembelajaran enable row level security;
+create policy "Allow all operations for anon" on topik_materi_pembelajaran for all using (true) with check (true);
 
 alter table cpmk enable row level security;
 create policy "Allow all operations for anon" on cpmk for all using (true) with check (true);

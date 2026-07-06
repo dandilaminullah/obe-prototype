@@ -198,7 +198,7 @@ export default function VMTSPage() {
                 </div>
               </div>
               <Button
-                variant={hasKeilmuanData ? "secondary" : "default"}
+                variant={hasKeilmuanData ? "secondary" : "primary"}
                 size="sm"
                 onClick={() => openEditModal("keilmuan")}
               >
@@ -248,7 +248,7 @@ export default function VMTSPage() {
                 </div>
               </div>
               <Button
-                variant={hasProdiData ? "secondary" : "default"}
+                variant={hasProdiData ? "secondary" : "primary"}
                 size="sm"
                 onClick={() => openEditModal("prodi")}
               >
@@ -324,7 +324,7 @@ export default function VMTSPage() {
                 </div>
               </div>
               <Button
-                variant={hasPtData ? "secondary" : "default"}
+                variant={hasPtData ? "secondary" : "primary"}
                 size="sm"
                 onClick={() => openEditModal("pt")}
               >

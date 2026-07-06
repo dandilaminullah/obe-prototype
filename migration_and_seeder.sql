@@ -7,14 +7,40 @@
 -- 1. SQL COMMANDS (MIGRATION / ALTER TABLES)
 -- -------------------------------------------------------------------------
 
--- Menambahkan tagging SDGs (IKU 7) pada tabel CPL
+-- Menghapus kolom kategori dan sdgs pada tabel CPL
 ALTER TABLE cpl 
-ADD COLUMN IF NOT EXISTS sdgs text[];
+DROP COLUMN IF EXISTS kategori,
+DROP COLUMN IF EXISTS sdgs;
 
--- Menambahkan metode pembelajaran (IKU 5) dan tautan MoU pada tabel Mata Kuliah
+-- Menambahkan metode pembelajaran (IKU 5), tautan MoU, dan pemecahan SKS (TPK) pada tabel Mata Kuliah
 ALTER TABLE mata_kuliah 
 ADD COLUMN IF NOT EXISTS metode_pembelajaran text default 'REGULAR',
-ADD COLUMN IF NOT EXISTS tautan_mou text;
+ADD COLUMN IF NOT EXISTS tautan_mou text,
+ADD COLUMN IF NOT EXISTS sks_teori integer default 0,
+ADD COLUMN IF NOT EXISTS sks_praktikum integer default 0,
+ADD COLUMN IF NOT EXISTS sks_lapangan integer default 0;
+
+-- Membuat tabel Topik Materi Pembelajaran (KAP)
+CREATE TABLE IF NOT EXISTS topik_materi_pembelajaran (
+  id uuid primary key default uuid_generate_v4(),
+  mata_kuliah_id uuid references mata_kuliah(id) on delete cascade not null,
+  urutan integer default 1,
+  nama text not null,
+  kedalaman_k integer default 0, -- Kognitif
+  kedalaman_a integer default 0, -- Afektif
+  kedalaman_p integer default 0, -- Psikomotorik
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+ALTER TABLE topik_materi_pembelajaran ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all operations for anon" ON topik_materi_pembelajaran FOR ALL USING (true) WITH CHECK (true);
+
+-- Penyesuaian Bahan Kajian: Tambah cpl_id, Hapus deskripsi, Hapus profil_lulusan_bk
+ALTER TABLE bahan_kajian 
+ADD COLUMN IF NOT EXISTS cpl_id uuid REFERENCES cpl(id) ON DELETE SET NULL,
+DROP COLUMN IF EXISTS deskripsi;
+
+DROP TABLE IF EXISTS profil_lulusan_bk CASCADE;
 
 -- Membuat tabel Grading Audit Trail untuk riwayat perubahan nilai (IKU 11)
 CREATE TABLE IF NOT EXISTS grading_audit_trail (
@@ -50,20 +76,6 @@ CREATE POLICY "Allow all operations for anon" ON rencana_aksi_perbaikan FOR ALL 
 -- -------------------------------------------------------------------------
 -- 2. SEEDER DATA (DUMMY DATA)
 -- -------------------------------------------------------------------------
-
--- Seeder untuk SDGs pada CPL yang sudah ada
--- (Pastikan data cpl sudah ada, ini akan mengupdate CPL teratas)
-UPDATE cpl 
-SET sdgs = ARRAY['SDG4', 'SDG8', 'SDG9'] 
-WHERE id IN (
-  SELECT id FROM cpl ORDER BY kode ASC LIMIT 1
-);
-
-UPDATE cpl 
-SET sdgs = ARRAY['SDG5', 'SDG10'] 
-WHERE id IN (
-  SELECT id FROM cpl ORDER BY kode ASC OFFSET 1 LIMIT 1
-);
 
 -- Seeder untuk IKU 5 (Metode Pembelajaran TBP & CM) pada Mata Kuliah
 UPDATE mata_kuliah 

@@ -17,11 +17,12 @@ export default function AuditorPortalPage() {
     setLoading(true);
     
     // Fetch all required data
-    const [coursesRes, cpmkRes, subCpmkRes, mappingRes, cplRes] = await Promise.all([
+    const [coursesRes, cpmkRes, subCpmkRes, mapBkRes, bkRes, cplRes] = await Promise.all([
       supabase.from("mata_kuliah").select("*, prodi(nama)").order("kode"),
       supabase.from("cpmk").select("*"),
       supabase.from("sub_cpmk").select("*"),
-      supabase.from("mata_kuliah_cpl").select("*"),
+      supabase.from("mata_kuliah_bk").select("*"),
+      supabase.from("bahan_kajian").select("*"),
       supabase.from("cpl").select("*")
     ]);
 
@@ -33,12 +34,12 @@ export default function AuditorPortalPage() {
           sub_cpmks: (subCpmkRes.data || []).filter(s => s.cpmk_id === cpmk.id)
         }));
 
-        // Attach CPLs
-        const mappings = (mappingRes.data || []).filter(m => m.mata_kuliah_id === course.id);
-        const courseCpls = mappings.map(m => {
-          const cpl = (cplRes.data || []).find(c => c.id === m.cpl_id);
-          return { ...cpl, bobot: m.bobot };
-        });
+        // Attach CPLs via BK
+        const courseBks = (mapBkRes.data || []).filter(m => m.mata_kuliah_id === course.id);
+        const courseCplIds = Array.from(new Set(
+          courseBks.map(m => (bkRes.data || []).find(b => b.id === m.bk_id)?.cpl_id).filter(Boolean)
+        ));
+        const courseCpls = courseCplIds.map(cplId => (cplRes.data || []).find(c => c.id === cplId)).filter(Boolean);
 
         return { ...course, cpmks: courseCpmks, cpls: courseCpls };
       });
@@ -68,7 +69,11 @@ export default function AuditorPortalPage() {
                     <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
                     {course.kode} - {course.nama}
                   </CardTitle>
-                  <div className="text-sm text-slate-500 mt-1">SKS: {course.sks} • Prodi: {course.prodi?.nama} • Metode: {course.metode_pembelajaran}</div>
+                  <div className="text-sm text-slate-500 mt-1">
+                    {course.sks ? `SKS: ${course.sks} • ` : ""}
+                    Prodi: {course.prodi?.nama}
+                    {course.metode_pembelajaran ? ` • Metode: ${course.metode_pembelajaran}` : ""}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">

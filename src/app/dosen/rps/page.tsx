@@ -13,6 +13,8 @@ export default function RPSBuilderPage() {
   const [selectedKurikulum, setSelectedKurikulum] = useState<string>("");
 
   const [courses, setCourses] = useState<any[]>([]);
+  const [bks, setBks] = useState<any[]>([]);
+  const [courseBks, setCourseBks] = useState<any[]>([]);
   const [cpmks, setCpmks] = useState<any[]>([]);
   const [subCpmks, setSubCpmks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ export default function RPSBuilderPage() {
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
 
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
-  const [cpmkForm, setCpmkForm] = useState({ kode: "", deskripsi: "", bobot: 0 });
+  const [cpmkForm, setCpmkForm] = useState({ kode: "", deskripsi: "", bobot: 0, bk_id: "" });
 
   const [isSubCpmkModalOpen, setIsSubCpmkModalOpen] = useState(false);
   const [subCpmkForm, setSubCpmkForm] = useState({ kode: "", deskripsi: "", bobot: 0, cpmk_id: "" });
@@ -61,15 +63,21 @@ export default function RPSBuilderPage() {
 
   const fetchCourses = async (kurikulumId: string) => {
     setLoading(true);
-    const { data } = await supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId).order("semester").order("kode");
-    if (data) {
-      setCourses(data);
-      if (data.length > 0) {
-        setSelectedCourseId(data[0].id);
+    const [coursesRes, bkRes, mapBkRes] = await Promise.all([
+      supabase.from("mata_kuliah").select("*").eq("kurikulum_id", kurikulumId).order("semester").order("kode"),
+      supabase.from("bahan_kajian").select("*").eq("kurikulum_id", kurikulumId).order("kode"),
+      supabase.from("mata_kuliah_bk").select("*"),
+    ]);
+    if (coursesRes.data) {
+      setCourses(coursesRes.data);
+      if (coursesRes.data.length > 0) {
+        setSelectedCourseId(coursesRes.data[0].id);
       } else {
         setSelectedCourseId("");
       }
     }
+    if (bkRes.data) setBks(bkRes.data);
+    if (mapBkRes.data) setCourseBks(mapBkRes.data);
     setLoading(false);
   };
 
@@ -93,9 +101,9 @@ export default function RPSBuilderPage() {
 
   const handleCpmkSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    await supabase.from("cpmk").insert([{ ...cpmkForm, mata_kuliah_id: selectedCourseId }]);
+    await supabase.from("cpmk").insert([{ ...cpmkForm, bk_id: cpmkForm.bk_id || null, mata_kuliah_id: selectedCourseId }]);
     setIsCpmkModalOpen(false);
-    setCpmkForm({ kode: "", deskripsi: "", bobot: 0 });
+    setCpmkForm({ kode: "", deskripsi: "", bobot: 0, bk_id: "" });
     fetchCpmkAndSubCpmk(selectedCourseId);
   };
 
@@ -271,7 +279,17 @@ export default function RPSBuilderPage() {
                               <Trash2 className="w-3 h-3" />
                             </Button>
                           </CardTitle>
-                          <CardDescription className="mt-1 text-slate-800">{cpmk.deskripsi}</CardDescription>
+                          <CardDescription className="mt-1 text-slate-800 flex flex-col gap-1">
+                            <span>{cpmk.deskripsi}</span>
+                            {(() => {
+                              const linkedBk = bks.find(b => b.id === cpmk.bk_id);
+                              return linkedBk ? (
+                                <span className="inline-flex items-center text-xs font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-200 w-fit">
+                                  BK: {linkedBk.kode} - {linkedBk.nama}
+                                </span>
+                              ) : null;
+                            })()}
+                          </CardDescription>
                           <div className="mt-3 flex items-center space-x-2">
                             <span className="text-sm font-medium bg-blue-50 text-blue-800 px-2 py-1 rounded">Bobot thd MK:</span>
                             <div className="relative">
@@ -359,6 +377,26 @@ export default function RPSBuilderPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Deskripsi</label>
                 <textarea required rows={3} className="w-full p-2.5 border border-slate-300 rounded focus:border-primary outline-none" value={cpmkForm.deskripsi} onChange={e => setCpmkForm({...cpmkForm, deskripsi: e.target.value})} placeholder="Capaian spesifik MK" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Bahan Kajian (Mata Kuliah ini)</label>
+                {(() => {
+                  const assignedBkIds = courseBks.filter(mbk => mbk.mata_kuliah_id === selectedCourseId).map(mbk => mbk.bk_id);
+                  const availableBks = bks.filter(bk => assignedBkIds.includes(bk.id));
+                  return (
+                    <select
+                      required
+                      className="w-full p-2.5 border border-slate-300 rounded focus:border-primary outline-none text-sm bg-white"
+                      value={cpmkForm.bk_id || ""}
+                      onChange={e => setCpmkForm({ ...cpmkForm, bk_id: e.target.value })}
+                    >
+                      <option value="">-- Pilih Bahan Kajian --</option>
+                      {availableBks.map(bk => (
+                        <option key={bk.id} value={bk.id}>{bk.kode} - {bk.nama}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Bobot thd MK (%)</label>

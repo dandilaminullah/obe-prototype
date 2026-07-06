@@ -9,7 +9,6 @@ export interface CPL {
   code: string;
   description: string;
   profileId: string;
-  sdgs?: string[];
 }
 
 export interface CplMapping {
@@ -26,18 +25,42 @@ export interface SubCPMK {
 
 export interface CPMK {
   id: string;
-  description: string;
-  weight: number;
+  kode?: string;
+  description?: string;
+  deskripsi?: string;
+  weight?: number;
+  bobot?: number;
+  kedalaman_k?: number;
+  kedalaman_a?: number;
+  kedalaman_p?: number;
+  bk_id?: string | null;
+}
+
+export interface TopikMateriPembelajaran {
+  id: string;
+  mata_kuliah_id: string;
+  urutan?: number;
+  nama: string;
+  kedalaman_k: number;
+  kedalaman_a: number;
+  kedalaman_p: number;
+  created_at?: string;
 }
 
 export interface Course {
   id: string;
   code: string;
   name: string;
-  cpl_mapping: CplMapping[];
-  cpmk: CPMK[];
-  sub_cpmk: SubCPMK[];
-  learningMethod?: 'REGULAR' | 'TBP' | 'CM';
+  sks?: number | null;
+  sks_teori?: number | null;
+  sks_praktikum?: number | null;
+  sks_lapangan?: number | null;
+  semester?: number | null;
+  sifat_mk?: string | null;
+  cpmk?: CPMK[];
+  sub_cpmk?: SubCPMK[];
+  topik_materi?: TopikMateriPembelajaran[];
+  learningMethod?: 'REGULAR' | 'TBP' | 'CM' | null;
   mouLink?: string;
 }
 

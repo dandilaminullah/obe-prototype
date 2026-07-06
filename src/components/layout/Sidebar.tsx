@@ -109,7 +109,7 @@ const getNavItems = (role: UserRole): NavSection[] => {
           title: "Curriculum (OBC)",
           items: [
             {
-              title: "Manajemen & VMTS",
+              title: "Fondasi",
               icon: Layers,
               subItems: [
                 {
@@ -125,24 +125,46 @@ const getNavItems = (role: UserRole): NavSection[] => {
               ],
             },
             {
-              title: "Profil Lulusan",
-              href: "/admin/curriculum/profiles",
+              title: "Profil Lulusan dan CPL",
               icon: UserCheck,
+              subItems: [
+                {
+                  title: "Profil Lulusan",
+                  href: "/admin/curriculum/profiles",
+                  icon: UserCheck,
+                },
+                {
+                  title: "CPL",
+                  href: "/admin/curriculum/cpl",
+                  icon: Target,
+                },
+                {
+                  title: "Matriks PL-CPL",
+                  href: "/admin/curriculum/matrix-pl-cpl",
+                  icon: Grid,
+                },
+              ],
             },
             {
-              title: "Bahan Kajian",
-              href: "/admin/curriculum/bk",
+              title: "Bahan Kajian dan MK",
               icon: BookOpen,
-            },
-            {
-              title: "Course Builder",
-              href: "/admin/curriculum/mapping",
-              icon: Network,
-            },
-            {
-              title: "Matriks Kurikulum",
-              href: "/admin/curriculum/matrix",
-              icon: Grid,
+              subItems: [
+                {
+                  title: "Bahan Kajian",
+                  href: "/admin/curriculum/bk",
+                  icon: BookOpen,
+                },
+                {
+                  title: "Mata kuliah",
+                  href: "/admin/curriculum/courses",
+                  icon: Network,
+                },
+                {
+                  title: "Matriks CPL-BK & CPL-MK",
+                  href: "/admin/curriculum/matrix",
+                  icon: Grid,
+                },
+              ],
             },
             {
               title: "Curriculum Viewer",
@@ -224,7 +246,11 @@ const getNavItems = (role: UserRole): NavSection[] => {
 
 function NavSubMenu({ item, pathname }: { item: NavItem; pathname: string }) {
   const isAnySubActive = item.subItems?.some(
-    (sub) => pathname === sub.href || (sub.href !== "/admin/curriculum" && pathname.startsWith(sub.href + "/")) || (sub.href === "/admin/curriculum" && pathname === "/admin/curriculum")
+    (sub) =>
+      pathname === sub.href ||
+      (sub.href !== "/admin/curriculum" &&
+        pathname.startsWith(sub.href + "/")) ||
+      (sub.href === "/admin/curriculum" && pathname === "/admin/curriculum"),
   );
 
   const [isOpen, setIsOpen] = useState(isAnySubActive ?? true);
@@ -236,14 +262,16 @@ function NavSubMenu({ item, pathname }: { item: NavItem; pathname: string }) {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "w-full flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md transition-colors",
-          isAnySubActive ? "bg-slate-100 text-primary" : "text-foreground hover:bg-slate-100"
+          isAnySubActive
+            ? "bg-slate-100 text-primary"
+            : "text-foreground hover:bg-slate-100",
         )}
       >
         <div className="flex items-center">
           <ParentIcon
             className={cn(
               "mr-3 h-5 w-5 flex-shrink-0",
-              isAnySubActive ? "text-primary" : "text-muted"
+              isAnySubActive ? "text-primary" : "text-muted",
             )}
             aria-hidden="true"
           />
@@ -274,13 +302,13 @@ function NavSubMenu({ item, pathname }: { item: NavItem; pathname: string }) {
                   "flex items-center px-2 py-1.5 text-xs font-medium rounded-md transition-colors",
                   isActive
                     ? "bg-primary/10 text-primary font-semibold"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                 )}
               >
                 <SubIcon
                   className={cn(
                     "mr-2 h-4 w-4 flex-shrink-0",
-                    isActive ? "text-primary" : "text-slate-400"
+                    isActive ? "text-primary" : "text-slate-400",
                   )}
                   aria-hidden="true"
                 />
@@ -319,7 +347,13 @@ export function Sidebar() {
                   <div className="space-y-1">
                     {section.items.map((item, itemIdx) => {
                       if (item.subItems) {
-                        return <NavSubMenu key={itemIdx} item={item} pathname={pathname} />;
+                        return (
+                          <NavSubMenu
+                            key={itemIdx}
+                            item={item}
+                            pathname={pathname}
+                          />
+                        );
                       }
 
                       if (!item.href) return null;
@@ -337,13 +371,13 @@ export function Sidebar() {
                             "flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                             isActive
                               ? "bg-primary/10 text-primary"
-                              : "text-foreground hover:bg-slate-100"
+                              : "text-foreground hover:bg-slate-100",
                           )}
                         >
                           <ItemIcon
                             className={cn(
                               "mr-3 h-5 w-5 flex-shrink-0",
-                              isActive ? "text-primary" : "text-muted"
+                              isActive ? "text-primary" : "text-muted",
                             )}
                             aria-hidden="true"
                           />
@@ -360,14 +394,16 @@ export function Sidebar() {
                     "flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                     pathname === section.href
                       ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-slate-100"
+                      : "text-foreground hover:bg-slate-100",
                   )}
                 >
                   {section.icon && (
                     <section.icon
                       className={cn(
                         "mr-3 h-5 w-5 flex-shrink-0",
-                        pathname === section.href ? "text-primary" : "text-muted"
+                        pathname === section.href
+                          ? "text-primary"
+                          : "text-muted",
                       )}
                       aria-hidden="true"
                     />

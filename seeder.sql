@@ -65,11 +65,11 @@ BEGIN
   (v_peo_3, 'IT Project Manager', 'Pemimpin proyek TI yang mampu mengelola sumber daya, waktu, dan risiko dalam pengembangan sistem.', v_kurikulum_id);
 
   -- 4. CPL (Capaian Pembelajaran Lulusan)
-  INSERT INTO cpl (id, kode, kategori, deskripsi, kurikulum_id, sdgs) VALUES 
-  (v_cpl_1, 'S-01', 'Sikap', 'Menunjukkan sikap bertanggung jawab atas pekerjaan di bidang keahliannya secara mandiri.', v_kurikulum_id, ARRAY['SDG4', 'SDG8']),
-  (v_cpl_2, 'KU-02', 'Keterampilan Umum', 'Mampu menunjukkan kinerja mandiri, bermutu, dan terukur.', v_kurikulum_id, ARRAY['SDG4', 'SDG9']),
-  (v_cpl_3, 'KK-01', 'Keterampilan Khusus', 'Mampu menganalisis, merancang, dan mengimplementasikan sistem informasi organisasi.', v_kurikulum_id, ARRAY['SDG8', 'SDG9']),
-  (v_cpl_4, 'P-03', 'Pengetahuan', 'Menguasai konsep teoritis arsitektur data dan manajemen basis data.', v_kurikulum_id, ARRAY['SDG9']);
+  INSERT INTO cpl (id, kode, deskripsi, kurikulum_id) VALUES 
+  (v_cpl_1, 'S-01', 'Menunjukkan sikap bertanggung jawab atas pekerjaan di bidang keahliannya secara mandiri.', v_kurikulum_id),
+  (v_cpl_2, 'KU-02', 'Mampu menunjukkan kinerja mandiri, bermutu, dan terukur.', v_kurikulum_id),
+  (v_cpl_3, 'KK-01', 'Mampu menganalisis, merancang, dan mengimplementasikan sistem informasi organisasi.', v_kurikulum_id),
+  (v_cpl_4, 'P-03', 'Menguasai konsep teoritis arsitektur data dan manajemen basis data.', v_kurikulum_id);
 
   -- 5. PEO - CPL Mapping
   INSERT INTO profil_lulusan_cpl (profil_id, cpl_id) VALUES 
@@ -79,35 +79,38 @@ BEGIN
   (v_peo_2, v_cpl_4);
 
   -- 6. Bahan Kajian (Study Material)
-  INSERT INTO bahan_kajian (id, kode, nama, deskripsi, kurikulum_id) VALUES
-  (v_bk_1, 'BK-01', 'Analisis Proses Bisnis', 'Mempelajari pemodelan dan analisis proses bisnis organisasi.', v_kurikulum_id),
-  (v_bk_2, 'BK-02', 'UML Modeling', 'Pemodelan berorientasi objek dengan Unified Modeling Language (UML).', v_kurikulum_id),
-  (v_bk_3, 'BK-03', 'Database Architecture', 'Arsitektur database rasional dan non-relasional.', v_kurikulum_id),
-  (v_bk_4, 'BK-04', 'SQL', 'Structured Query Language dan optimasi query.', v_kurikulum_id),
-  (v_bk_5, 'BK-05', 'IT Governance & Risk Management', 'Tata kelola TI dan manajemen risiko dalam siklus proyek.', v_kurikulum_id);
+  INSERT INTO bahan_kajian (id, kode, nama, kurikulum_id, cpl_id) VALUES
+  (v_bk_1, 'BK-01', 'Analisis Proses Bisnis', v_kurikulum_id, v_cpl_3),
+  (v_bk_2, 'BK-02', 'UML Modeling', v_kurikulum_id, v_cpl_3),
+  (v_bk_3, 'BK-03', 'Database Architecture', v_kurikulum_id, v_cpl_4),
+  (v_bk_4, 'BK-04', 'SQL', v_kurikulum_id, v_cpl_4),
+  (v_bk_5, 'BK-05', 'IT Governance & Risk Management', v_kurikulum_id, v_cpl_1);
 
   -- 7. Mata Kuliah
-  INSERT INTO mata_kuliah (id, kode, nama, sks, semester, sifat_mk, rekognisi_mbkm, kurikulum_id, metode_pembelajaran, tautan_mou) VALUES
-  (v_mk_1, 'SI101', 'Analisis & Perancangan Sistem', 3, 3, 'Wajib', true, v_kurikulum_id, 'CM', 'https://drive.google.com/contoh-mou-cm'),
-  (v_mk_2, 'SI202', 'Manajemen Basis Data', 4, 2, 'Wajib', false, v_kurikulum_id, 'REGULAR', null),
-  (v_mk_3, 'SI305', 'Manajemen Proyek TI', 2, 5, 'Wajib', true, v_kurikulum_id, 'TBP', 'https://drive.google.com/contoh-mou-tbp');
+  INSERT INTO mata_kuliah (id, kode, nama, sks, sks_teori, sks_praktikum, sks_lapangan, semester, sifat_mk, rekognisi_mbkm, kurikulum_id, metode_pembelajaran, tautan_mou) VALUES
+  (v_mk_1, 'SI101', 'Analisis & Perancangan Sistem', 3, 2, 1, 0, 3, 'Wajib', true, v_kurikulum_id, 'CM', 'https://drive.google.com/contoh-mou-cm'),
+  (v_mk_2, 'SI202', 'Manajemen Basis Data', 4, 2, 2, 0, 2, 'Wajib', false, v_kurikulum_id, 'REGULAR', null),
+  (v_mk_3, 'SI305', 'Manajemen Proyek TI', 2, 2, 0, 0, 5, 'Wajib', true, v_kurikulum_id, 'TBP', 'https://drive.google.com/contoh-mou-tbp');
 
-  -- 8. MK - CPL Mapping
-  INSERT INTO mata_kuliah_cpl (mata_kuliah_id, cpl_id, bobot) VALUES
-  (v_mk_1, v_cpl_3, 1.0),
-  (v_mk_2, v_cpl_4, 1.0),
-  (v_mk_3, v_cpl_1, 0.5), (v_mk_3, v_cpl_2, 0.5);
-
-  -- 9. MK - BK Mapping
+  -- 8. MK - BK Mapping
   INSERT INTO mata_kuliah_bk (mata_kuliah_id, bk_id) VALUES
   (v_mk_1, v_bk_1), (v_mk_1, v_bk_2),
   (v_mk_2, v_bk_3), (v_mk_2, v_bk_4),
   (v_mk_3, v_bk_5);
 
+  -- 9. Topik Materi Pembelajaran (KAP Depth)
+  INSERT INTO topik_materi_pembelajaran (mata_kuliah_id, urutan, nama, kedalaman_k, kedalaman_a, kedalaman_p) VALUES
+  (v_mk_1, 1, 'Konsep dasar analisis sistem dan pemodelan proses bisnis', 2, 2, 0),
+  (v_mk_1, 2, 'Spesifikasi kebutuhan perangkat lunak dan analisis kelayakan', 2, 1, 1),
+  (v_mk_1, 3, 'Perancangan arsitektur sistem dan antarmuka pengguna', 3, 1, 2),
+  (v_mk_2, 1, 'Konsep dasar arsitektur basis data relasional', 2, 0, 1),
+  (v_mk_2, 2, 'Bahasa DDL dan DML SQL serta pengoperasian DBMS', 2, 1, 2),
+  (v_mk_2, 3, 'Fisiologi dan optimasi query basis data enterprise', 2, 1, 2);
+
   -- 10. CPMK
-  INSERT INTO cpmk (id, kode, deskripsi, bobot, mata_kuliah_id) VALUES
-  (v_cpmk_1, 'CPMK-1', 'Mampu memodelkan kebutuhan bisnis ke dalam diagram standar industri', 40.0, v_mk_1),
-  (v_cpmk_2, 'CPMK-2', 'Mampu menyusun dokumen spesifikasi kebutuhan perangkat lunak', 60.0, v_mk_1);
+  INSERT INTO cpmk (id, kode, deskripsi, bobot, mata_kuliah_id, bk_id) VALUES
+  (v_cpmk_1, 'CPMK-1', 'Mampu memodelkan kebutuhan bisnis ke dalam diagram standar industri', 40.0, v_mk_1, v_bk_1),
+  (v_cpmk_2, 'CPMK-2', 'Mampu menyusun dokumen spesifikasi kebutuhan perangkat lunak', 60.0, v_mk_1, v_bk_2);
 
   -- 11. Sub-CPMK
   INSERT INTO sub_cpmk (id, kode, deskripsi, bobot, metode_penilaian, instrumen_penilaian, cpmk_id) VALUES
