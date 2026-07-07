@@ -139,7 +139,7 @@ const getNavItems = (role: UserRole): NavSection[] => {
                   icon: Target,
                 },
                 {
-                  title: "Matriks PL-CPL",
+                  title: "Matriks",
                   href: "/admin/curriculum/matrix-pl-cpl",
                   icon: Grid,
                 },
@@ -160,7 +160,7 @@ const getNavItems = (role: UserRole): NavSection[] => {
                   icon: Network,
                 },
                 {
-                  title: "Matriks CPL-BK & CPL-MK",
+                  title: "Matriks",
                   href: "/admin/curriculum/matrix",
                   icon: Grid,
                 },

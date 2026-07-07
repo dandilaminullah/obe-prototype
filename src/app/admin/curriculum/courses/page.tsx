@@ -40,6 +40,7 @@ export default function MataKuliahPage() {
 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isGroupedBySemester, setIsGroupedBySemester] = useState(true);
 
   // SKS Weighting Mode (Batch Save)
   const [isSksWeightingMode, setIsSksWeightingMode] = useState(false);
@@ -206,7 +207,7 @@ export default function MataKuliahPage() {
 
       await Promise.all(updatePromises);
       setIsSksWeightingMode(false);
-      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
     } catch (err) {
       console.error(err);
       alert("Gagal menyimpan pembobotan SKS");
@@ -243,8 +244,8 @@ export default function MataKuliahPage() {
     }
   };
 
-  const fetchMappingData = async (kurikulumId: string) => {
-    setLoading(true);
+  const fetchMappingData = async (kurikulumId: string, silent = false) => {
+    if (!silent) setLoading(true);
     const [cplRes, bkRes, courseRes, mapBkRes, cpmkRes, subRes, topikRes] =
       await Promise.all([
         supabase
@@ -330,14 +331,12 @@ export default function MataKuliahPage() {
         .eq("mata_kuliah_id", courseForm.id);
 
       if (courseForm.assigned_bks.length > 0) {
-        await supabase
-          .from("mata_kuliah_bk")
-          .insert(
-            courseForm.assigned_bks.map((bkId) => ({
-              mata_kuliah_id: courseForm.id,
-              bk_id: bkId,
-            })),
-          );
+        await supabase.from("mata_kuliah_bk").insert(
+          courseForm.assigned_bks.map((bkId) => ({
+            mata_kuliah_id: courseForm.id,
+            bk_id: bkId,
+          })),
+        );
       }
     } else {
       const { data } = await supabase
@@ -347,19 +346,17 @@ export default function MataKuliahPage() {
         .single();
 
       if (data && courseForm.assigned_bks.length > 0) {
-        await supabase
-          .from("mata_kuliah_bk")
-          .insert(
-            courseForm.assigned_bks.map((bkId) => ({
-              mata_kuliah_id: data.id,
-              bk_id: bkId,
-            })),
-          );
+        await supabase.from("mata_kuliah_bk").insert(
+          courseForm.assigned_bks.map((bkId) => ({
+            mata_kuliah_id: data.id,
+            bk_id: bkId,
+          })),
+        );
       }
     }
 
     setIsCourseModalOpen(false);
-    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
   };
 
   const handleCourseDelete = async (id: string) => {
@@ -369,7 +366,7 @@ export default function MataKuliahPage() {
       )
     ) {
       await supabase.from("mata_kuliah").delete().eq("id", id);
-      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
     }
   };
 
@@ -394,13 +391,13 @@ export default function MataKuliahPage() {
       await supabase.from("topik_materi_pembelajaran").insert([payload]);
     }
     setIsTopikModalOpen(false);
-    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
   };
 
   const handleTopikDelete = async (id: string) => {
     if (confirm("Hapus topik materi pembelajaran ini?")) {
       await supabase.from("topik_materi_pembelajaran").delete().eq("id", id);
-      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
     }
   };
 
@@ -411,7 +408,8 @@ export default function MataKuliahPage() {
     const a = Number(cpmkForm.kedalaman_a || 0);
     const p = Number(cpmkForm.kedalaman_p || 0);
     const totalPoints = k + a + p;
-    const finalBobot = totalPoints > 0 ? totalPoints : Number(cpmkForm.bobot || 0);
+    const finalBobot =
+      totalPoints > 0 ? totalPoints : Number(cpmkForm.bobot || 0);
 
     const payload = {
       kode: cpmkForm.kode,
@@ -424,10 +422,7 @@ export default function MataKuliahPage() {
     };
 
     if (cpmkForm.id) {
-      await supabase
-        .from("cpmk")
-        .update(payload)
-        .eq("id", cpmkForm.id);
+      await supabase.from("cpmk").update(payload).eq("id", cpmkForm.id);
     } else {
       await supabase.from("cpmk").insert([
         {
@@ -437,13 +432,13 @@ export default function MataKuliahPage() {
       ]);
     }
     setIsCpmkModalOpen(false);
-    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
   };
 
   const handleCpmkDelete = async (id: string) => {
     if (confirm("Hapus CPMK ini beserta seluruh Sub-CPMK di dalamnya?")) {
       await supabase.from("cpmk").delete().eq("id", id);
-      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
     }
   };
 
@@ -474,13 +469,13 @@ export default function MataKuliahPage() {
       ]);
     }
     setIsSubCpmkModalOpen(false);
-    if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+    if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
   };
 
   const handleSubCpmkDelete = async (id: string) => {
     if (confirm("Hapus Sub-CPMK ini?")) {
       await supabase.from("sub_cpmk").delete().eq("id", id);
-      if (selectedKurikulum) fetchMappingData(selectedKurikulum);
+      if (selectedKurikulum) fetchMappingData(selectedKurikulum, true);
     }
   };
 
@@ -489,6 +484,32 @@ export default function MataKuliahPage() {
       c.kode.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.nama.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  const sortedAndGroupedCourses = React.useMemo(() => {
+    if (!isGroupedBySemester) return filteredCourses;
+
+    return [...filteredCourses].sort((a, b) => {
+      const semA =
+        a.semester !== null && a.semester !== undefined && a.semester !== ""
+          ? Number(a.semester)
+          : 999;
+      const semB =
+        b.semester !== null && b.semester !== undefined && b.semester !== ""
+          ? Number(b.semester)
+          : 999;
+
+      const isNumA = !isNaN(semA) && semA !== 999;
+      const isNumB = !isNaN(semB) && semB !== 999;
+
+      if (isNumA && isNumB) return semA - semB;
+      if (isNumA) return -1;
+      if (isNumB) return 1;
+
+      const valA = a.semester ? String(a.semester) : "";
+      const valB = b.semester ? String(b.semester) : "";
+      return valA.localeCompare(valB);
+    });
+  }, [filteredCourses, isGroupedBySemester]);
 
   if (loading)
     return (
@@ -591,20 +612,34 @@ export default function MataKuliahPage() {
         </div>
       )}
 
-      {/* Filter / Search Bar */}
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-        <input
-          type="text"
-          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-primary"
-          placeholder="Cari Mata Kuliah berdasarkan kode atau nama..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      {/* Filter / Search Bar & Grouping Button */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <input
+            type="text"
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-primary"
+            placeholder="Cari Mata Kuliah berdasarkan kode atau nama..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Button
+          variant={isGroupedBySemester ? "primary" : "outline"}
+          onClick={() => setIsGroupedBySemester(!isGroupedBySemester)}
+          className={
+            isGroupedBySemester
+              ? "bg-primary text-white border border-primary shadow-sm"
+              : "border border-slate-200 bg-transparent text-slate-700 hover:bg-slate-50"
+          }
+        >
+          <Layers className="w-4 h-4 mr-2" />
+          Kelompokkan Semester
+        </Button>
       </div>
 
       <div className="space-y-4">
-        {filteredCourses.length === 0 && (
+        {sortedAndGroupedCourses.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center text-slate-500">
               {courses.length === 0
@@ -614,7 +649,7 @@ export default function MataKuliahPage() {
           </Card>
         )}
 
-        {filteredCourses.map((course) => {
+        {sortedAndGroupedCourses.map((course, idx) => {
           const isExpanded = expandedCourse === course.id;
           const courseBksData = courseBks
             .filter((m) => m.mata_kuliah_id === course.id)
@@ -629,809 +664,866 @@ export default function MataKuliahPage() {
             (c) => c.mata_kuliah_id === course.id,
           );
 
-          return (
-            <Card
-              key={course.id}
-              className="overflow-hidden border border-slate-200 shadow-sm transition-all duration-200"
-            >
-              {/* Course Header */}
-              <div
-                className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors ${isExpanded ? "bg-slate-50 border-b border-slate-100" : ""}`}
-                onClick={() => setExpandedCourse(isExpanded ? null : course.id)}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="bg-primary/10 p-2.5 rounded-lg">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800">
-                      {course.kode} - {course.nama}
-                    </h3>
-                    <div className="flex flex-wrap items-center text-sm text-slate-500 gap-x-2 gap-y-1 mt-1">
-                      {course.semester && (
-                        <span>Semester {course.semester} •</span>
-                      )}
-                      <span>
-                        {course.sks ||
-                          (course.sks_teori || 0) +
-                            (course.sks_praktikum || 0) +
-                            (course.sks_lapangan || 0)}{" "}
-                        SKS (T:{course.sks_teori || 0} P:
-                        {course.sks_praktikum || 0} K:{course.sks_lapangan || 0}
-                        ) •
-                      </span>
-                      {course.sifat_mk && <span>{course.sifat_mk} •</span>}
-                      {course.rekognisi_mbkm && (
-                        <span className="text-emerald-600 font-semibold">
-                          MBKM •
-                        </span>
-                      )}
-                      <span className="font-semibold text-primary">
-                        {courseCpmks.length} CPMK
-                      </span>
-                    </div>
-                    {course.metode_pembelajaran &&
-                      course.metode_pembelajaran !== "REGULAR" && (
-                        <div className="mt-2 text-xs">
-                          <span className="bg-purple-100 text-purple-700 font-semibold px-2 py-1 rounded">
-                            IKU 5:{" "}
-                            {course.metode_pembelajaran === "TBP"
-                              ? "Team-Based Project"
-                              : course.metode_pembelajaran === "CM"
-                                ? "Case Method"
-                                : course.metode_pembelajaran}
-                          </span>
-                          {course.tautan_mou && (
-                            <a
-                              href={course.tautan_mou}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ml-2 text-blue-500 hover:underline"
-                            >
-                              Lihat Dokumen MoU
-                            </a>
-                          )}
-                        </div>
-                      )}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCourseForm({
-                        id: course.id,
-                        kode: course.kode,
-                        nama: course.nama,
-                        sks: course.sks ?? "",
-                        sks_teori: course.sks_teori ?? 0,
-                        sks_praktikum: course.sks_praktikum ?? 0,
-                        sks_lapangan: course.sks_lapangan ?? 0,
-                        kurikulum_id: course.kurikulum_id,
-                        semester: course.semester ?? "",
-                        sifat_mk: course.sifat_mk ?? "",
-                        rekognisi_mbkm: course.rekognisi_mbkm ?? false,
-                        assigned_bks: courseBks
-                          .filter((m) => m.mata_kuliah_id === course.id)
-                          .map((m) => m.bk_id),
-                        metode_pembelajaran: course.metode_pembelajaran ?? "",
-                        tautan_mou: course.tautan_mou || "",
-                      });
-                      setIsCustomKode(true);
-                      setIsCourseModalOpen(true);
-                    }}
-                  >
-                    <Pencil className="w-4 h-4 text-slate-500" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCourseDelete(course.id);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                  {isExpanded ? (
-                    <ChevronUp className="w-5 h-5 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400" />
-                  )}
-                </div>
-              </div>
+          const hasSemester =
+            course.semester !== null &&
+            course.semester !== undefined &&
+            course.semester !== "";
+          const showHeader =
+            isGroupedBySemester &&
+            (idx === 0 ||
+              sortedAndGroupedCourses[idx - 1].semester !== course.semester);
 
-              {/* Inline SKS Weighting Mode Form */}
-              {isSksWeightingMode && (
-                <div
-                  className="p-3 bg-indigo-50/80 border-t border-indigo-200 flex items-center justify-between flex-wrap gap-3"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center space-x-2 text-xs font-bold text-indigo-900">
-                    <Sliders className="w-4 h-4 text-indigo-600" />
-                    <span>Pembobotan SKS:</span>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1.5 text-xs">
-                      <span className="font-semibold text-slate-700">
-                        Teori (T):
+          return (
+            <React.Fragment key={course.id}>
+              {showHeader && (
+                <div className="pt-6 pb-2 border-b border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="inline-flex items-center justify-center bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">
+                        Semester {hasSemester ? course.semester : "Lainnya"}
                       </span>
-                      <input
-                        type="number"
-                        min="0"
-                        className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
-                        value={sksWeightDrafts[course.id]?.sks_teori ?? 0}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setSksWeightDrafts((prev) => ({
-                            ...prev,
-                            [course.id]: {
-                              ...(prev[course.id] || {
-                                sks_teori: 0,
-                                sks_praktikum: 0,
-                                sks_lapangan: 0,
-                              }),
-                              sks_teori: val,
-                            },
-                          }));
-                        }}
-                      />
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-xs">
-                      <span className="font-semibold text-slate-700">
-                        Praktikum (P):
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        {(() => {
+                          const semesterCourses =
+                            sortedAndGroupedCourses.filter(
+                              (c) => c.semester === course.semester,
+                            );
+                          const wajibCount = semesterCourses.filter(
+                            (c) => c.sifat_mk === "Wajib",
+                          ).length;
+                          const pilihanCount = semesterCourses.filter(
+                            (c) => c.sifat_mk === "Pilihan",
+                          ).length;
+                          const mkwkCount = semesterCourses.filter(
+                            (c) => c.sifat_mk === "MKWK",
+                          ).length;
+                          return `Wajib: ${wajibCount} • MKWK: ${mkwkCount} • Pilihan: ${pilihanCount} • Total: ${semesterCourses.length}`;
+                        })()}
                       </span>
-                      <input
-                        type="number"
-                        min="0"
-                        className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
-                        value={sksWeightDrafts[course.id]?.sks_praktikum ?? 0}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setSksWeightDrafts((prev) => ({
-                            ...prev,
-                            [course.id]: {
-                              ...(prev[course.id] || {
-                                sks_teori: 0,
-                                sks_praktikum: 0,
-                                sks_lapangan: 0,
-                              }),
-                              sks_praktikum: val,
-                            },
-                          }));
-                        }}
-                      />
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-xs">
-                      <span className="font-semibold text-slate-700">
-                        Lapangan (K):
-                      </span>
-                      <input
-                        type="number"
-                        min="0"
-                        className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
-                        value={sksWeightDrafts[course.id]?.sks_lapangan ?? 0}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setSksWeightDrafts((prev) => ({
-                            ...prev,
-                            [course.id]: {
-                              ...(prev[course.id] || {
-                                sks_teori: 0,
-                                sks_praktikum: 0,
-                                sks_lapangan: 0,
-                              }),
-                              sks_lapangan: val,
-                            },
-                          }));
-                        }}
-                      />
-                    </div>
-                    <div className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-md shadow-sm">
-                      Total:{" "}
-                      {(sksWeightDrafts[course.id]?.sks_teori || 0) +
-                        (sksWeightDrafts[course.id]?.sks_praktikum || 0) +
-                        (sksWeightDrafts[course.id]?.sks_lapangan || 0)}{" "}
-                      SKS
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* Course Content */}
-              {isExpanded && (
-                <div className="p-6 bg-white space-y-8">
-                  {/* Mapping Info */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
-                    <h4 className="text-sm font-bold text-slate-700 flex items-center">
-                      <Layers className="w-4 h-4 mr-2 text-orange-500" />
-                      Bahan Kajian (BK) & Pemetaan CPL
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {courseBksData.length > 0 ? (
-                        courseBksData.map((bk: any) => (
-                          <span
-                            key={bk.id}
-                            className="px-3 py-1.5 bg-white text-slate-800 text-xs rounded-lg border border-slate-200 font-medium shadow-sm flex items-center space-x-2"
-                          >
-                            <span className="font-bold text-orange-700">
-                              {bk.kode}
-                            </span>
-                            <span>- {bk.nama}</span>
-                            {bk.cpl ? (
-                              <span
-                                className="ml-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold border border-indigo-100"
-                                title={bk.cpl.deskripsi}
-                              >
-                                {bk.cpl.kode}
-                              </span>
-                            ) : (
-                              <span className="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded text-[10px]">
-                                Tanpa CPL
-                              </span>
-                            )}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-slate-400 italic">
-                          Belum ada Bahan Kajian terhubung
+              <Card className="overflow-hidden border border-slate-200 shadow-sm transition-all duration-200">
+                {/* Course Header */}
+                <div
+                  className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors ${isExpanded ? "bg-slate-50 border-b border-slate-100" : ""}`}
+                  onClick={() =>
+                    setExpandedCourse(isExpanded ? null : course.id)
+                  }
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-primary/10 p-2.5 rounded-lg">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-800">
+                        {course.kode} - {course.nama}
+                      </h3>
+                      <div className="flex flex-wrap items-center text-sm text-slate-500 gap-x-2 gap-y-1 mt-1">
+                        {course.semester && (
+                          <span>Semester {course.semester} •</span>
+                        )}
+                        <span>
+                          {course.sks ||
+                            (course.sks_teori || 0) +
+                              (course.sks_praktikum || 0) +
+                              (course.sks_lapangan || 0)}{" "}
+                          SKS (T:{course.sks_teori || 0} P:
+                          {course.sks_praktikum || 0} K:
+                          {course.sks_lapangan || 0}) •
                         </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Topik Materi Pembelajaran Section */}
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
-                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                      <div>
-                        <h4 className="font-bold text-slate-800 flex items-center text-base">
-                          <ListOrdered className="w-5 h-5 mr-2 text-indigo-600" />
-                          Topik Materi Pembelajaran (Kedalaman KAP)
-                        </h4>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Topik materi dirancang berdasarkan CPMK dengan
-                          pembobotan Kognitif (K), Afektif (A), dan Psikomotorik
-                          (P).
-                        </p>
+                        {course.sifat_mk && <span>{course.sifat_mk} •</span>}
+                        {course.rekognisi_mbkm && (
+                          <span className="text-emerald-600 font-semibold">
+                            MBKM •
+                          </span>
+                        )}
+                        <span className="font-semibold text-primary">
+                          {courseCpmks.length} CPMK
+                        </span>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                        onClick={() => {
-                          const courseTopikList = topikMateri.filter(
-                            (t) => t.mata_kuliah_id === course.id,
-                          );
-                          setTopikForm({
-                            mata_kuliah_id: course.id,
-                            urutan: courseTopikList.length + 1,
-                            nama: "",
-                            kedalaman_k: 0,
-                            kedalaman_a: 0,
-                            kedalaman_p: 0,
-                          });
-                          setIsTopikModalOpen(true);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1.5" /> Tambah Topik Materi
-                      </Button>
-                    </div>
-
-                    {(() => {
-                      const courseTopics = topikMateri.filter(
-                        (t) => t.mata_kuliah_id === course.id,
-                      );
-                      const totalBobotKap = courseTopics.reduce(
-                        (sum, t) =>
-                          sum +
-                          (Number(t.kedalaman_k || 0) +
-                            Number(t.kedalaman_a || 0) +
-                            Number(t.kedalaman_p || 0)),
-                        0,
-                      );
-                      const estSks =
-                        totalBobotKap > 0
-                          ? (totalBobotKap / 4.76).toFixed(1)
-                          : "0";
-
-                      return (
-                        <div className="space-y-3">
-                          {courseTopics.length > 0 && (
-                            <div className="flex flex-wrap items-center justify-between text-xs font-semibold text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm gap-2">
-                              <span>
-                                Total Topik:{" "}
-                                <strong className="text-slate-800">
-                                  {courseTopics.length} Topik
-                                </strong>
-                              </span>
-                              <span>
-                                Total Bobot KAP Kumulatif:{" "}
-                                <strong className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                                  {totalBobotKap} Point
-                                </strong>
-                              </span>
-                              <span>
-                                Estimasi SKS Justifikasi:{" "}
-                                <strong className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                                  {estSks} SKS
-                                </strong>
-                              </span>
-                            </div>
-                          )}
-
-                          {courseTopics.length === 0 ? (
-                            <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-sm">
-                              Belum ada Topik Materi Pembelajaran untuk Mata
-                              Kuliah ini.
-                            </div>
-                          ) : (
-                            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                              <table className="w-full text-left border-collapse text-sm">
-                                <thead>
-                                  <tr className="bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                                    <th className="py-2.5 px-3 w-12 text-center">
-                                      No
-                                    </th>
-                                    <th className="py-2.5 px-3">
-                                      Topik Materi Pembelajaran
-                                    </th>
-                                    <th className="py-2.5 px-3 text-center w-36">
-                                      Kedalaman (K, A, P)
-                                    </th>
-                                    <th className="py-2.5 px-3 text-center w-24">
-                                      Bobot
-                                    </th>
-                                    <th className="py-2.5 px-3 text-center w-24">
-                                      Aksi
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                  {courseTopics.map((topik, idx) => {
-                                    const topicWeight =
-                                      Number(topik.kedalaman_k || 0) +
-                                      Number(topik.kedalaman_a || 0) +
-                                      Number(topik.kedalaman_p || 0);
-                                    return (
-                                      <tr
-                                        key={topik.id}
-                                        className="hover:bg-slate-50 transition-colors"
-                                      >
-                                        <td className="py-2.5 px-3 text-center font-bold text-slate-500">
-                                          {idx + 1}
-                                        </td>
-                                        <td className="py-2.5 px-3 font-medium text-slate-800">
-                                          {topik.nama}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-center">
-                                          <div className="inline-flex space-x-1 text-xs font-mono">
-                                            <span
-                                              className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold border border-blue-100"
-                                              title="Kognitif"
-                                            >
-                                              K:{topik.kedalaman_k}
-                                            </span>
-                                            <span
-                                              className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-100"
-                                              title="Afektif"
-                                            >
-                                              A:{topik.kedalaman_a}
-                                            </span>
-                                            <span
-                                              className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-100"
-                                              title="Psikomotorik"
-                                            >
-                                              P:{topik.kedalaman_p}
-                                            </span>
-                                          </div>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-center font-bold text-indigo-700">
-                                          {topicWeight}
-                                        </td>
-                                        <td className="py-2.5 px-3 text-center">
-                                          <div className="flex justify-center space-x-1">
-                                            <button
-                                              onClick={() => {
-                                                setTopikForm({
-                                                  id: topik.id,
-                                                  mata_kuliah_id: course.id,
-                                                  urutan:
-                                                    topik.urutan || idx + 1,
-                                                  nama: topik.nama,
-                                                  kedalaman_k:
-                                                    topik.kedalaman_k,
-                                                  kedalaman_a:
-                                                    topik.kedalaman_a,
-                                                  kedalaman_p:
-                                                    topik.kedalaman_p,
-                                                });
-                                                setIsTopikModalOpen(true);
-                                              }}
-                                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                            >
-                                              <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                            <button
-                                              onClick={() =>
-                                                handleTopikDelete(topik.id)
-                                              }
-                                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                            >
-                                              <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* CPMK Section */}
-                  <div>
-                    <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
-                      <h4 className="font-bold text-slate-800 flex items-center text-lg">
-                        <Activity className="w-5 h-5 mr-2 text-primary" />
-                        Capaian Pembelajaran Mata Kuliah (CPMK)
-                      </h4>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const assignedBkIds = courseBks
-                            .filter((mbk) => mbk.mata_kuliah_id === course.id)
-                            .map((mbk) => mbk.bk_id);
-                          const availableBks = bks.filter((bk) => assignedBkIds.includes(bk.id));
-                          setCpmkForm({
-                            id: "",
-                            kode: "",
-                            deskripsi: "",
-                            bobot: 0,
-                            kedalaman_k: 0,
-                            kedalaman_a: 0,
-                            kedalaman_p: 0,
-                            mata_kuliah_id: course.id,
-                            bk_id: availableBks.length > 0 ? availableBks[0].id : "",
-                          });
-                          setIsCpmkModalOpen(true);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Tambah CPMK
-                      </Button>
-                    </div>
-
-                    {(() => {
-                      const totalCpmkKap = courseCpmks.reduce(
-                        (sum, c) =>
-                          sum +
-                          (Number(c.kedalaman_k || 0) +
-                            Number(c.kedalaman_a || 0) +
-                            Number(c.kedalaman_p || 0) || Number(c.bobot || 0)),
-                        0,
-                      );
-                      return (
-                        courseCpmks.length > 0 && (
-                          <div className="flex flex-wrap items-center justify-between text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 gap-2 mb-3">
-                            <span>
-                              Total CPMK:{" "}
-                              <strong className="text-slate-800">
-                                {courseCpmks.length} CPMK
-                              </strong>
+                      {course.metode_pembelajaran &&
+                        course.metode_pembelajaran !== "REGULAR" && (
+                          <div className="mt-2 text-xs">
+                            <span className="bg-purple-100 text-purple-700 font-semibold px-2 py-1 rounded">
+                              IKU 5:{" "}
+                              {course.metode_pembelajaran === "TBP"
+                                ? "Team-Based Project"
+                                : course.metode_pembelajaran === "CM"
+                                  ? "Case Method"
+                                  : course.metode_pembelajaran}
                             </span>
-                            <span>
-                              Total Bobot KAP CPMK Kumulatif:{" "}
-                              <strong className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                                {totalCpmkKap} Point
-                              </strong>
-                            </span>
-                          </div>
-                        )
-                      );
-                    })()}
-
-                    <div className="space-y-4">
-                      {courseCpmks.length === 0 ? (
-                        <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
-                          Belum ada CPMK untuk Mata Kuliah ini. Silakan
-                          tambahkan CPMK pertama Anda.
-                        </div>
-                      ) : (
-                        courseCpmks.map((cpmk) => {
-                          const isCpmkExpanded = expandedCpmk === cpmk.id;
-                          const cpmkSubs = subCpmks.filter(
-                            (s) => s.cpmk_id === cpmk.id,
-                          );
-                          const cpmkWeight =
-                            Number(cpmk.kedalaman_k || 0) +
-                            Number(cpmk.kedalaman_a || 0) +
-                            Number(cpmk.kedalaman_p || 0) || Number(cpmk.bobot || 0);
-
-                          return (
-                            <div
-                              key={cpmk.id}
-                              className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden"
-                            >
-                              <div
-                                className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                onClick={() =>
-                                  setExpandedCpmk(
-                                    isCpmkExpanded ? null : cpmk.id,
-                                  )
-                                }
+                            {course.tautan_mou && (
+                              <a
+                                href={course.tautan_mou}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ml-2 text-blue-500 hover:underline"
                               >
-                                <div className="flex items-center space-x-4 flex-1">
-                                  <div className="bg-primary text-white text-sm font-bold px-3 py-1.5 rounded-md text-center shadow-sm">
-                                    {cpmk.kode}
-                                  </div>
-                                  <div className="flex flex-col flex-1 pr-4">
-                                    <div className="text-sm font-medium text-slate-700 leading-relaxed">
-                                      {cpmk.deskripsi}
-                                    </div>
-                                    {(() => {
-                                      const linkedBk = bks.find((b) => b.id === cpmk.bk_id);
-                                      return linkedBk ? (
-                                        <div className="mt-1 flex items-center">
-                                          <span
-                                            className="inline-flex items-center text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-200"
-                                            title={`Bahan Kajian: ${linkedBk.nama}`}
-                                          >
-                                            <Layers className="w-3 h-3 mr-1 text-orange-500" />
-                                            BK: {linkedBk.kode} - {linkedBk.nama}
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <div className="mt-1 flex items-center">
-                                          <span className="inline-flex items-center text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                            Belum dikaitkan Bahan Kajian
-                                          </span>
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-                                  <div className="inline-flex space-x-1 text-xs font-mono">
-                                    <span
-                                      className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold border border-blue-100"
-                                      title="Kognitif"
-                                    >
-                                      K:{cpmk.kedalaman_k || 0}
-                                    </span>
-                                    <span
-                                      className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-100"
-                                      title="Afektif"
-                                    >
-                                      A:{cpmk.kedalaman_a || 0}
-                                    </span>
-                                    <span
-                                      className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-100"
-                                      title="Psikomotorik"
-                                    >
-                                      P:{cpmk.kedalaman_p || 0}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">
-                                    Bobot: {cpmkWeight} Point
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-2 pl-4 border-l border-slate-100 ml-4">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCpmkForm({
-                                        id: cpmk.id,
-                                        kode: cpmk.kode,
-                                        deskripsi: cpmk.deskripsi,
-                                        bobot: cpmk.bobot || 0,
-                                        kedalaman_k: cpmk.kedalaman_k || 0,
-                                        kedalaman_a: cpmk.kedalaman_a || 0,
-                                        kedalaman_p: cpmk.kedalaman_p || 0,
-                                        mata_kuliah_id: course.id,
-                                        bk_id: cpmk.bk_id || "",
-                                      });
-                                      setIsCpmkModalOpen(true);
-                                    }}
-                                  >
-                                    <Pencil className="w-4 h-4 text-slate-500" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCpmkDelete(cpmk.id);
-                                    }}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                  {isCpmkExpanded ? (
-                                    <ChevronUp className="w-5 h-5 text-slate-400 ml-1" />
-                                  ) : (
-                                    <ChevronDown className="w-5 h-5 text-slate-400 ml-1" />
-                                  )}
-                                </div>
+                                Lihat Dokumen MoU
+                              </a>
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCourseForm({
+                          id: course.id,
+                          kode: course.kode,
+                          nama: course.nama,
+                          sks: course.sks ?? "",
+                          sks_teori: course.sks_teori ?? 0,
+                          sks_praktikum: course.sks_praktikum ?? 0,
+                          sks_lapangan: course.sks_lapangan ?? 0,
+                          kurikulum_id: course.kurikulum_id,
+                          semester: course.semester ?? "",
+                          sifat_mk: course.sifat_mk ?? "",
+                          rekognisi_mbkm: course.rekognisi_mbkm ?? false,
+                          assigned_bks: courseBks
+                            .filter((m) => m.mata_kuliah_id === course.id)
+                            .map((m) => m.bk_id),
+                          metode_pembelajaran: course.metode_pembelajaran ?? "",
+                          tautan_mou: course.tautan_mou || "",
+                        });
+                        setIsCustomKode(true);
+                        setIsCourseModalOpen(true);
+                      }}
+                    >
+                      <Pencil className="w-4 h-4 text-slate-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCourseDelete(course.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Inline SKS Weighting Mode Form */}
+                {isSksWeightingMode && (
+                  <div
+                    className="p-3 bg-indigo-50/80 border-t border-indigo-200 flex items-center justify-between flex-wrap gap-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center space-x-2 text-xs font-bold text-indigo-900">
+                      <Sliders className="w-4 h-4 text-indigo-600" />
+                      <span>Pembobotan SKS:</span>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-1.5 text-xs">
+                        <span className="font-semibold text-slate-700">
+                          Teori (T):
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
+                          value={sksWeightDrafts[course.id]?.sks_teori ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setSksWeightDrafts((prev) => ({
+                              ...prev,
+                              [course.id]: {
+                                ...(prev[course.id] || {
+                                  sks_teori: 0,
+                                  sks_praktikum: 0,
+                                  sks_lapangan: 0,
+                                }),
+                                sks_teori: val,
+                              },
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-1.5 text-xs">
+                        <span className="font-semibold text-slate-700">
+                          Praktikum (P):
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
+                          value={sksWeightDrafts[course.id]?.sks_praktikum ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setSksWeightDrafts((prev) => ({
+                              ...prev,
+                              [course.id]: {
+                                ...(prev[course.id] || {
+                                  sks_teori: 0,
+                                  sks_praktikum: 0,
+                                  sks_lapangan: 0,
+                                }),
+                                sks_praktikum: val,
+                              },
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-1.5 text-xs">
+                        <span className="font-semibold text-slate-700">
+                          Lapangan (K):
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="w-16 p-1 border border-indigo-300 rounded text-center font-bold text-slate-800 bg-white outline-none focus:ring-2 focus:ring-indigo-400"
+                          value={sksWeightDrafts[course.id]?.sks_lapangan ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            setSksWeightDrafts((prev) => ({
+                              ...prev,
+                              [course.id]: {
+                                ...(prev[course.id] || {
+                                  sks_teori: 0,
+                                  sks_praktikum: 0,
+                                  sks_lapangan: 0,
+                                }),
+                                sks_lapangan: val,
+                              },
+                            }));
+                          }}
+                        />
+                      </div>
+                      <div className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-md shadow-sm">
+                        Total:{" "}
+                        {(sksWeightDrafts[course.id]?.sks_teori || 0) +
+                          (sksWeightDrafts[course.id]?.sks_praktikum || 0) +
+                          (sksWeightDrafts[course.id]?.sks_lapangan || 0)}{" "}
+                        SKS
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Course Content */}
+                {isExpanded && (
+                  <div className="p-6 bg-white space-y-8">
+                    {/* Mapping Info */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                      <h4 className="text-sm font-bold text-slate-700 flex items-center">
+                        <Layers className="w-4 h-4 mr-2 text-orange-500" />
+                        Bahan Kajian (BK) & Pemetaan CPL
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {courseBksData.length > 0 ? (
+                          courseBksData.map((bk: any) => (
+                            <span
+                              key={bk.id}
+                              className="px-3 py-1.5 bg-white text-slate-800 text-xs rounded-lg border border-slate-200 font-medium shadow-sm flex items-center space-x-2"
+                            >
+                              <span className="font-bold text-orange-700">
+                                {bk.kode}
+                              </span>
+                              <span>- {bk.nama}</span>
+                              {bk.cpl ? (
+                                <span
+                                  className="ml-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold border border-indigo-100"
+                                  title={bk.cpl.deskripsi}
+                                >
+                                  {bk.cpl.kode}
+                                </span>
+                              ) : (
+                                <span className="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded text-[10px]">
+                                  Tanpa CPL
+                                </span>
+                              )}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-slate-400 italic">
+                            Belum ada Bahan Kajian terhubung
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Topik Materi Pembelajaran Section */}
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                      <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <div>
+                          <h4 className="font-bold text-slate-800 flex items-center text-base">
+                            <ListOrdered className="w-5 h-5 mr-2 text-indigo-600" />
+                            Topik Materi Pembelajaran (Kedalaman KAP)
+                          </h4>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Topik materi dirancang berdasarkan CPMK dengan
+                            pembobotan Kognitif (K), Afektif (A), dan
+                            Psikomotorik (P).
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                          onClick={() => {
+                            const courseTopikList = topikMateri.filter(
+                              (t) => t.mata_kuliah_id === course.id,
+                            );
+                            setTopikForm({
+                              mata_kuliah_id: course.id,
+                              urutan: courseTopikList.length + 1,
+                              nama: "",
+                              kedalaman_k: 0,
+                              kedalaman_a: 0,
+                              kedalaman_p: 0,
+                            });
+                            setIsTopikModalOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1.5" /> Tambah Topik
+                          Materi
+                        </Button>
+                      </div>
+
+                      {(() => {
+                        const courseTopics = topikMateri.filter(
+                          (t) => t.mata_kuliah_id === course.id,
+                        );
+                        const totalBobotKap = courseTopics.reduce(
+                          (sum, t) =>
+                            sum +
+                            (Number(t.kedalaman_k || 0) +
+                              Number(t.kedalaman_a || 0) +
+                              Number(t.kedalaman_p || 0)),
+                          0,
+                        );
+                        const estSks =
+                          totalBobotKap > 0
+                            ? (totalBobotKap / 4.76).toFixed(1)
+                            : "0";
+
+                        return (
+                          <div className="space-y-3">
+                            {courseTopics.length > 0 && (
+                              <div className="flex flex-wrap items-center justify-between text-xs font-semibold text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm gap-2">
+                                <span>
+                                  Total Topik:{" "}
+                                  <strong className="text-slate-800">
+                                    {courseTopics.length} Topik
+                                  </strong>
+                                </span>
+                                <span>
+                                  Total Bobot KAP Kumulatif:{" "}
+                                  <strong className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                    {totalBobotKap} Point
+                                  </strong>
+                                </span>
+                                <span>
+                                  Estimasi SKS Justifikasi:{" "}
+                                  <strong className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                    {estSks} SKS
+                                  </strong>
+                                </span>
                               </div>
+                            )}
 
-                              {/* Sub-CPMK Section */}
-                              {isCpmkExpanded && (
-                                <div className="p-5 bg-slate-50 border-t border-slate-200">
-                                  <div className="flex flex-col mb-4 space-y-3">
-                                    <div className="flex justify-between items-center">
-                                      <h5 className="text-sm font-bold text-slate-700 flex items-center">
-                                        <CheckSquare className="w-4 h-4 mr-2 text-emerald-600" />
-                                        Indikator / Sub-CPMK
-                                      </h5>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 text-xs bg-white"
-                                        onClick={() => {
-                                          setSubCpmkForm({
-                                            id: "",
-                                            kode: "",
-                                            deskripsi: "",
-                                            bobot: 0,
-                                            metode_penilaian: "",
-                                            instrumen_penilaian: "",
-                                            cpmk_id: cpmk.id,
-                                          });
-                                          setIsSubCpmkModalOpen(true);
-                                        }}
-                                      >
-                                        <Plus className="w-3 h-3 mr-1" /> Tambah
-                                        Sub-CPMK
-                                      </Button>
-                                    </div>
-
-                                    {/* Weight Validation */}
-                                    {(() => {
-                                      const totalSubWeight = cpmkSubs.reduce(
-                                        (sum, s) => sum + Number(s.bobot || 0),
-                                        0,
-                                      );
-                                      const isWeightValid =
-                                        totalSubWeight === 100;
+                            {courseTopics.length === 0 ? (
+                              <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 text-sm">
+                                Belum ada Topik Materi Pembelajaran untuk Mata
+                                Kuliah ini.
+                              </div>
+                            ) : (
+                              <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                                <table className="w-full text-left border-collapse text-sm">
+                                  <thead>
+                                    <tr className="bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                                      <th className="py-2.5 px-3 w-12 text-center">
+                                        No
+                                      </th>
+                                      <th className="py-2.5 px-3">
+                                        Topik Materi Pembelajaran
+                                      </th>
+                                      <th className="py-2.5 px-3 text-center w-36">
+                                        Kedalaman (K, A, P)
+                                      </th>
+                                      <th className="py-2.5 px-3 text-center w-24">
+                                        Bobot
+                                      </th>
+                                      <th className="py-2.5 px-3 text-center w-24">
+                                        Aksi
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {courseTopics.map((topik, idx) => {
+                                      const topicWeight =
+                                        Number(topik.kedalaman_k || 0) +
+                                        Number(topik.kedalaman_a || 0) +
+                                        Number(topik.kedalaman_p || 0);
                                       return (
-                                        <div className="w-full">
-                                          <div className="flex justify-between text-xs font-semibold mb-1">
-                                            <span
-                                              className={
-                                                isWeightValid
-                                                  ? "text-slate-600"
-                                                  : "text-red-600"
-                                              }
-                                            >
-                                              Total Bobot Sub-CPMK (Validasi
-                                              100%)
-                                            </span>
-                                            <span
-                                              className={
-                                                isWeightValid
-                                                  ? "text-emerald-600"
-                                                  : "text-red-600"
-                                              }
-                                            >
-                                              {totalSubWeight}% / 100%
-                                            </span>
-                                          </div>
-                                          <div className="w-full bg-slate-200 rounded-full h-2">
-                                            <div
-                                              className={`h-2 rounded-full ${isWeightValid ? "bg-emerald-500" : totalSubWeight > 100 ? "bg-red-500" : "bg-amber-500"}`}
-                                              style={{
-                                                width: `${Math.min(totalSubWeight, 100)}%`,
-                                              }}
-                                            ></div>
-                                          </div>
-                                          {!isWeightValid &&
-                                            cpmkSubs.length > 0 && (
-                                              <p className="text-xs text-red-500 mt-1">
-                                                Total bobot Sub-CPMK harus
-                                                bernilai tepat 100%.
-                                              </p>
-                                            )}
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-
-                                  <div className="space-y-3 pl-3 border-l-2 border-emerald-200">
-                                    {cpmkSubs.length === 0 ? (
-                                      <div className="text-sm text-slate-400 italic py-2 pl-2">
-                                        Belum ada Sub-CPMK.
-                                      </div>
-                                    ) : (
-                                      cpmkSubs.map((sub) => (
-                                        <div
-                                          key={sub.id}
-                                          className="flex flex-col p-4 bg-white border border-slate-200 shadow-sm rounded-lg ml-2 hover:border-emerald-200 transition-colors"
+                                        <tr
+                                          key={topik.id}
+                                          className="hover:bg-slate-50 transition-colors"
                                         >
-                                          <div className="flex justify-between items-start">
-                                            <div className="flex items-start space-x-3 flex-1">
-                                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 mt-0.5">
-                                                {sub.kode}
+                                          <td className="py-2.5 px-3 text-center font-bold text-slate-500">
+                                            {idx + 1}
+                                          </td>
+                                          <td className="py-2.5 px-3 font-medium text-slate-800">
+                                            {topik.nama}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center">
+                                            <div className="inline-flex space-x-1 text-xs font-mono">
+                                              <span
+                                                className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold border border-blue-100"
+                                                title="Kognitif"
+                                              >
+                                                K:{topik.kedalaman_k}
                                               </span>
-                                              <p className="text-sm text-slate-700 flex-1 leading-relaxed">
-                                                {sub.deskripsi}
-                                              </p>
-                                            </div>
-                                            <div className="flex items-center space-x-2 ml-4">
-                                              <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">
-                                                Bobot: {sub.bobot}%
+                                              <span
+                                                className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-100"
+                                                title="Afektif"
+                                              >
+                                                A:{topik.kedalaman_a}
                                               </span>
-                                              <div className="flex space-x-1 border-l border-slate-200 pl-2 ml-2">
-                                                <button
-                                                  onClick={() => {
-                                                    setSubCpmkForm({
-                                                      id: sub.id,
-                                                      kode: sub.kode,
-                                                      deskripsi: sub.deskripsi,
-                                                      bobot: sub.bobot,
-                                                      metode_penilaian:
-                                                        sub.metode_penilaian ||
-                                                        "",
-                                                      instrumen_penilaian:
-                                                        sub.instrumen_penilaian ||
-                                                        "",
-                                                      cpmk_id: cpmk.id,
-                                                    });
-                                                    setIsSubCpmkModalOpen(true);
-                                                  }}
-                                                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
-                                                >
-                                                  <Pencil className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                  onClick={() =>
-                                                    handleSubCpmkDelete(sub.id)
-                                                  }
-                                                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                                >
-                                                  <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                              </div>
+                                              <span
+                                                className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-100"
+                                                title="Psikomotorik"
+                                              >
+                                                P:{topik.kedalaman_p}
+                                              </span>
                                             </div>
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center font-bold text-indigo-700">
+                                            {topicWeight}
+                                          </td>
+                                          <td className="py-2.5 px-3 text-center">
+                                            <div className="flex justify-center space-x-1">
+                                              <button
+                                                onClick={() => {
+                                                  setTopikForm({
+                                                    id: topik.id,
+                                                    mata_kuliah_id: course.id,
+                                                    urutan:
+                                                      topik.urutan || idx + 1,
+                                                    nama: topik.nama,
+                                                    kedalaman_k:
+                                                      topik.kedalaman_k,
+                                                    kedalaman_a:
+                                                      topik.kedalaman_a,
+                                                    kedalaman_p:
+                                                      topik.kedalaman_p,
+                                                  });
+                                                  setIsTopikModalOpen(true);
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                              >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                              </button>
+                                              <button
+                                                onClick={() =>
+                                                  handleTopikDelete(topik.id)
+                                                }
+                                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* CPMK Section */}
+                    <div>
+                      <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-2">
+                        <h4 className="font-bold text-slate-800 flex items-center text-lg">
+                          <Activity className="w-5 h-5 mr-2 text-primary" />
+                          Capaian Pembelajaran Mata Kuliah (CPMK)
+                        </h4>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const assignedBkIds = courseBks
+                              .filter((mbk) => mbk.mata_kuliah_id === course.id)
+                              .map((mbk) => mbk.bk_id);
+                            const availableBks = bks.filter((bk) =>
+                              assignedBkIds.includes(bk.id),
+                            );
+                            setCpmkForm({
+                              id: "",
+                              kode: "",
+                              deskripsi: "",
+                              bobot: 0,
+                              kedalaman_k: 0,
+                              kedalaman_a: 0,
+                              kedalaman_p: 0,
+                              mata_kuliah_id: course.id,
+                              bk_id:
+                                availableBks.length > 0
+                                  ? availableBks[0].id
+                                  : "",
+                            });
+                            setIsCpmkModalOpen(true);
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> Tambah CPMK
+                        </Button>
+                      </div>
+
+                      {(() => {
+                        const totalCpmkKap = courseCpmks.reduce(
+                          (sum, c) =>
+                            sum +
+                            (Number(c.kedalaman_k || 0) +
+                              Number(c.kedalaman_a || 0) +
+                              Number(c.kedalaman_p || 0) ||
+                              Number(c.bobot || 0)),
+                          0,
+                        );
+                        return (
+                          courseCpmks.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 gap-2 mb-3">
+                              <span>
+                                Total CPMK:{" "}
+                                <strong className="text-slate-800">
+                                  {courseCpmks.length} CPMK
+                                </strong>
+                              </span>
+                              <span>
+                                Total Bobot KAP CPMK Kumulatif:{" "}
+                                <strong className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                                  {totalCpmkKap} Point
+                                </strong>
+                              </span>
+                            </div>
+                          )
+                        );
+                      })()}
+
+                      <div className="space-y-4">
+                        {courseCpmks.length === 0 ? (
+                          <div className="text-center p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-sm">
+                            Belum ada CPMK untuk Mata Kuliah ini. Silakan
+                            tambahkan CPMK pertama Anda.
+                          </div>
+                        ) : (
+                          courseCpmks.map((cpmk) => {
+                            const isCpmkExpanded = expandedCpmk === cpmk.id;
+                            const cpmkSubs = subCpmks.filter(
+                              (s) => s.cpmk_id === cpmk.id,
+                            );
+                            const cpmkWeight =
+                              Number(cpmk.kedalaman_k || 0) +
+                                Number(cpmk.kedalaman_a || 0) +
+                                Number(cpmk.kedalaman_p || 0) ||
+                              Number(cpmk.bobot || 0);
+
+                            return (
+                              <div
+                                key={cpmk.id}
+                                className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden"
+                              >
+                                <div
+                                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                  onClick={() =>
+                                    setExpandedCpmk(
+                                      isCpmkExpanded ? null : cpmk.id,
+                                    )
+                                  }
+                                >
+                                  <div className="flex items-center space-x-4 flex-1">
+                                    <div className="bg-primary text-white text-sm font-bold px-3 py-1.5 rounded-md text-center shadow-sm">
+                                      {cpmk.kode}
+                                    </div>
+                                    <div className="flex flex-col flex-1 pr-4">
+                                      <div className="text-sm font-medium text-slate-700 leading-relaxed">
+                                        {cpmk.deskripsi}
+                                      </div>
+                                      {(() => {
+                                        const linkedBk = bks.find(
+                                          (b) => b.id === cpmk.bk_id,
+                                        );
+                                        return linkedBk ? (
+                                          <div className="mt-1 flex items-center">
+                                            <span
+                                              className="inline-flex items-center text-[11px] font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-200"
+                                              title={`Bahan Kajian: ${linkedBk.nama}`}
+                                            >
+                                              <Layers className="w-3 h-3 mr-1 text-orange-500" />
+                                              BK: {linkedBk.kode} -{" "}
+                                              {linkedBk.nama}
+                                            </span>
                                           </div>
-                                          {(sub.metode_penilaian ||
-                                            sub.instrumen_penilaian) && (
-                                            <div className="mt-3 flex flex-wrap gap-2">
-                                              {sub.metode_penilaian && (
-                                                <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                                                  Metode: {sub.metode_penilaian}
-                                                </span>
-                                              )}
-                                              {sub.instrumen_penilaian && (
-                                                <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                  Instrumen:{" "}
-                                                  {sub.instrumen_penilaian}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))
+                                        ) : (
+                                          <div className="mt-1 flex items-center">
+                                            <span className="inline-flex items-center text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                              Belum dikaitkan Bahan Kajian
+                                            </span>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="inline-flex space-x-1 text-xs font-mono">
+                                      <span
+                                        className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold border border-blue-100"
+                                        title="Kognitif"
+                                      >
+                                        K:{cpmk.kedalaman_k || 0}
+                                      </span>
+                                      <span
+                                        className="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold border border-amber-100"
+                                        title="Afektif"
+                                      >
+                                        A:{cpmk.kedalaman_a || 0}
+                                      </span>
+                                      <span
+                                        className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-100"
+                                        title="Psikomotorik"
+                                      >
+                                        P:{cpmk.kedalaman_p || 0}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">
+                                      Bobot: {cpmkWeight} Point
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2 pl-4 border-l border-slate-100 ml-4">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCpmkForm({
+                                          id: cpmk.id,
+                                          kode: cpmk.kode,
+                                          deskripsi: cpmk.deskripsi,
+                                          bobot: cpmk.bobot || 0,
+                                          kedalaman_k: cpmk.kedalaman_k || 0,
+                                          kedalaman_a: cpmk.kedalaman_a || 0,
+                                          kedalaman_p: cpmk.kedalaman_p || 0,
+                                          mata_kuliah_id: course.id,
+                                          bk_id: cpmk.bk_id || "",
+                                        });
+                                        setIsCpmkModalOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="w-4 h-4 text-slate-500" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCpmkDelete(cpmk.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                    {isCpmkExpanded ? (
+                                      <ChevronUp className="w-5 h-5 text-slate-400 ml-1" />
+                                    ) : (
+                                      <ChevronDown className="w-5 h-5 text-slate-400 ml-1" />
                                     )}
                                   </div>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })
-                      )}
+
+                                {/* Sub-CPMK Section */}
+                                {isCpmkExpanded && (
+                                  <div className="p-5 bg-slate-50 border-t border-slate-200">
+                                    <div className="flex flex-col mb-4 space-y-3">
+                                      <div className="flex justify-between items-center">
+                                        <h5 className="text-sm font-bold text-slate-700 flex items-center">
+                                          <CheckSquare className="w-4 h-4 mr-2 text-emerald-600" />
+                                          Indikator / Sub-CPMK
+                                        </h5>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs bg-white"
+                                          onClick={() => {
+                                            setSubCpmkForm({
+                                              id: "",
+                                              kode: "",
+                                              deskripsi: "",
+                                              bobot: 0,
+                                              metode_penilaian: "",
+                                              instrumen_penilaian: "",
+                                              cpmk_id: cpmk.id,
+                                            });
+                                            setIsSubCpmkModalOpen(true);
+                                          }}
+                                        >
+                                          <Plus className="w-3 h-3 mr-1" />{" "}
+                                          Tambah Sub-CPMK
+                                        </Button>
+                                      </div>
+
+                                      {/* Weight Validation */}
+                                      {(() => {
+                                        const totalSubWeight = cpmkSubs.reduce(
+                                          (sum, s) =>
+                                            sum + Number(s.bobot || 0),
+                                          0,
+                                        );
+                                        const isWeightValid =
+                                          totalSubWeight === 100;
+                                        return (
+                                          <div className="w-full">
+                                            <div className="flex justify-between text-xs font-semibold mb-1">
+                                              <span
+                                                className={
+                                                  isWeightValid
+                                                    ? "text-slate-600"
+                                                    : "text-red-600"
+                                                }
+                                              >
+                                                Total Bobot Sub-CPMK (Validasi
+                                                100%)
+                                              </span>
+                                              <span
+                                                className={
+                                                  isWeightValid
+                                                    ? "text-emerald-600"
+                                                    : "text-red-600"
+                                                }
+                                              >
+                                                {totalSubWeight}% / 100%
+                                              </span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                              <div
+                                                className={`h-2 rounded-full ${isWeightValid ? "bg-emerald-500" : totalSubWeight > 100 ? "bg-red-500" : "bg-amber-500"}`}
+                                                style={{
+                                                  width: `${Math.min(totalSubWeight, 100)}%`,
+                                                }}
+                                              ></div>
+                                            </div>
+                                            {!isWeightValid &&
+                                              cpmkSubs.length > 0 && (
+                                                <p className="text-xs text-red-500 mt-1">
+                                                  Total bobot Sub-CPMK harus
+                                                  bernilai tepat 100%.
+                                                </p>
+                                              )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+
+                                    <div className="space-y-3 pl-3 border-l-2 border-emerald-200">
+                                      {cpmkSubs.length === 0 ? (
+                                        <div className="text-sm text-slate-400 italic py-2 pl-2">
+                                          Belum ada Sub-CPMK.
+                                        </div>
+                                      ) : (
+                                        cpmkSubs.map((sub) => (
+                                          <div
+                                            key={sub.id}
+                                            className="flex flex-col p-4 bg-white border border-slate-200 shadow-sm rounded-lg ml-2 hover:border-emerald-200 transition-colors"
+                                          >
+                                            <div className="flex justify-between items-start">
+                                              <div className="flex items-start space-x-3 flex-1">
+                                                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 mt-0.5">
+                                                  {sub.kode}
+                                                </span>
+                                                <p className="text-sm text-slate-700 flex-1 leading-relaxed">
+                                                  {sub.deskripsi}
+                                                </p>
+                                              </div>
+                                              <div className="flex items-center space-x-2 ml-4">
+                                                <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full border border-slate-200">
+                                                  Bobot: {sub.bobot}%
+                                                </span>
+                                                <div className="flex space-x-1 border-l border-slate-200 pl-2 ml-2">
+                                                  <button
+                                                    onClick={() => {
+                                                      setSubCpmkForm({
+                                                        id: sub.id,
+                                                        kode: sub.kode,
+                                                        deskripsi:
+                                                          sub.deskripsi,
+                                                        bobot: sub.bobot,
+                                                        metode_penilaian:
+                                                          sub.metode_penilaian ||
+                                                          "",
+                                                        instrumen_penilaian:
+                                                          sub.instrumen_penilaian ||
+                                                          "",
+                                                        cpmk_id: cpmk.id,
+                                                      });
+                                                      setIsSubCpmkModalOpen(
+                                                        true,
+                                                      );
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors"
+                                                  >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                  </button>
+                                                  <button
+                                                    onClick={() =>
+                                                      handleSubCpmkDelete(
+                                                        sub.id,
+                                                      )
+                                                    }
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            {(sub.metode_penilaian ||
+                                              sub.instrumen_penilaian) && (
+                                              <div className="mt-3 flex flex-wrap gap-2">
+                                                {sub.metode_penilaian && (
+                                                  <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                                    Metode:{" "}
+                                                    {sub.metode_penilaian}
+                                                  </span>
+                                                )}
+                                                {sub.instrumen_penilaian && (
+                                                  <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                                    Instrumen:{" "}
+                                                    {sub.instrumen_penilaian}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </Card>
+                )}
+              </Card>
+            </React.Fragment>
           );
         })}
       </div>
@@ -1774,7 +1866,8 @@ export default function MataKuliahPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1 text-slate-700 flex justify-between items-center">
                     <span>
-                      Bahan Kajian (Mata Kuliah ini) <span className="text-red-500">*</span>
+                      Bahan Kajian (Mata Kuliah ini){" "}
+                      <span className="text-red-500">*</span>
                     </span>
                     <span className="text-[11px] text-slate-500 font-normal">
                       Hanya menampilkan BK di MK ini
@@ -1782,11 +1875,17 @@ export default function MataKuliahPage() {
                   </label>
                   {(() => {
                     const assignedBkIds = courseBks
-                      .filter((mbk) => mbk.mata_kuliah_id === cpmkForm.mata_kuliah_id)
+                      .filter(
+                        (mbk) => mbk.mata_kuliah_id === cpmkForm.mata_kuliah_id,
+                      )
                       .map((mbk) => mbk.bk_id);
                     const availableBksForCourse = bks
                       .filter((bk) => assignedBkIds.includes(bk.id))
-                      .sort((a, b) => (a.kode || "").localeCompare(b.kode || "", undefined, { numeric: true }));
+                      .sort((a, b) =>
+                        (a.kode || "").localeCompare(b.kode || "", undefined, {
+                          numeric: true,
+                        }),
+                      );
 
                     return (
                       <div className="space-y-1.5">
@@ -1807,7 +1906,10 @@ export default function MataKuliahPage() {
                         </select>
                         {availableBksForCourse.length === 0 && (
                           <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-                            <strong>Peringatan:</strong> Mata Kuliah ini belum dihubungkan dengan Bahan Kajian (BK) apapun. Silakan hubungkan Bahan Kajian di form Edit Mata Kuliah terlebih dahulu.
+                            <strong>Peringatan:</strong> Mata Kuliah ini belum
+                            dihubungkan dengan Bahan Kajian (BK) apapun. Silakan
+                            hubungkan Bahan Kajian di form Edit Mata Kuliah
+                            terlebih dahulu.
                           </div>
                         )}
                       </div>
